@@ -1,0 +1,60 @@
+---
+title: "Plex Servarr WebDAV"
+subtitle: "Local"
+logo: "assets/logo.png"
+
+header: true
+footer: false
+
+theme: default
+
+columns: "3"
+
+defaults:
+  layout: list
+
+links:
+  - name: "Cloud"
+    icon: "fas fa-cloud"
+    url: "#cloud"
+
+services:
+  - name: "Applications"
+    icon: "fa-solid fa-film"
+    items:
+      - name: Plex
+        logo: "assets/tools/plex.png"
+        subtitle: "Stream your personal media collection"
+        url: "http://localhost:32400/web"
+      - name: "Jellyseerr"
+        logo: "assets/tools/jellyseerr.png"
+        subtitle: "Request platform for Plex media"
+        url: "http://localhost:5055"
+      - name: "Tautulli"
+        logo: "assets/tools/tautulli.png"
+        subtitle: "Monitor Plex server activity and user statistics"
+        url: "http://localhost:8181"
+  - name: "Technical"
+    icon: "fa-solid fa-helmet-safety"
+    class: "highlight-purple"
+    items:
+      - name: "Traefik"
+        logo: "assets/tools/traefik.svg"
+        subtitle: "Reverse proxy dashboard"
+        url: http://localhost:8080
+      - name: "RDT Client"
+        logo: "assets/tools/rdtclient.png"
+        subtitle: "Torrents downloader and manager"
+        url: "http://localhost:6500"
+      - name: "Prowlarr"
+        logo: assets/tools/prowlarr.png
+        subtitle: "Indexer manager for Sonarr and Radarr"
+        url: http://localhost:9696
+      - name: "Radarr"
+        logo: assets/tools/radarr.png
+        subtitle: "Automated movie downloader"
+        url: http://localhost:7878
+      - name: "Sonarr"
+        logo: assets/tools/sonarr.png
+        subtitle: "Automated TV series downloader"
+        url: http://localhost:8989

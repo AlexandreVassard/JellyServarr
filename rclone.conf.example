@@ -1,0 +1,25 @@
+###########################################################
+#               WebDAV Remote Configuration               #
+###########################################################
+
+[plex-webdav]
+
+# Type of the remote connection.
+# You don't want to change this except if you know what you are doing.
+type = webdav
+
+# The WebDAV server endpoint.
+# This URL should point to the root of your WebDAV server or provider.
+url = https://your_webdav_server_url
+
+# Specify your WebDAV vendor.
+# Use 'other' if your provider is not listed specifically.
+vendor = other
+
+# Your WebDAV username or login.
+user = you_username
+
+# Your WebDAV password.
+# It needs to be obscured by rclone :
+# docker run --rm rclone/rclone:latest obscure 'password_to_obscure'
+pass = your_obscured_password

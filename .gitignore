@@ -1,0 +1,8 @@
+data/
+
+.env
+.webdav.env
+rclone.conf
+
+homer/assets/config.yml
+homer/assets/local.yml

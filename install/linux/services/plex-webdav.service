@@ -1,0 +1,18 @@
+[Unit]
+Description=Plex WebDAV Mount Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/plex-webdav/.env.default
+EnvironmentFile=-/etc/plex-webdav/.env
+ExecStartPre=/bin/mkdir -p /mnt/plex-webdav
+ExecStart=/usr/local/bin/plex-webdav.sh     
+ExecStop=/bin/fusermount -u /mnt/plex-webdav
+Restart=always
+RestartSec=5
+SyslogIdentifier=plex-webdav
+
+[Install]
+WantedBy=multi-user.target
