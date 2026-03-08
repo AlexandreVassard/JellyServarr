@@ -1,7 +1,7 @@
 {
-  "name": "Jellyfin Servarr",
-  "short_name": "JellyServ",
-  "description": "Jellyfin Servarr WebDAV",
+  "name": "JellyServarr",
+  "short_name": "JellyServarr",
+  "description": "Self-hosted media stack dashboard — Jellyfin, Radarr, Sonarr, and friends.",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

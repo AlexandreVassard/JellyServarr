@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyfin-servarr}"
+APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyservarr}"
 WORKING_DIR="${WORKING_DIR:-$(readlink -f "$(dirname "$0")")}"
 REPOSITORY_DIR="${REPOSITORY_DIR:-$(readlink -f "$WORKING_DIR/..")}"
 CONFIG_DIR="${APP_BASE_DIR}/config"

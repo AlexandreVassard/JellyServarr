@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyfin-servarr}"
+APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyservarr}"
 WORKING_DIR="${WORKING_DIR:-$(readlink -f "$(dirname "$0")")}"
 REPOSITORY_DIR="${REPOSITORY_DIR:-$(readlink -f "$WORKING_DIR/..")}"
 
@@ -35,19 +35,15 @@ else
     say "\"$RCLONE_CONF_FILE\" found."
 fi
 
-if systemctl is-active --quiet jellyfin-webdav.service 2>/dev/null; then
-    say "Stopping legacy jellyfin-webdav systemd service..."
-    systemctl stop jellyfin-webdav.service
-    systemctl disable jellyfin-webdav.service
-    rm -f /etc/systemd/system/jellyfin-webdav.service
-    systemctl daemon-reload
-fi
-
 say "Creating mount and data directories..."
+if mountpoint -q "${APP_BASE_DIR}/mnt/webdav" 2>/dev/null || \
+   { ls "${APP_BASE_DIR}/mnt/webdav" 2>&1 | grep -q "Transport endpoint"; }; then
+    umount -l "${APP_BASE_DIR}/mnt/webdav" 2>/dev/null || true
+fi
 mkdir -p \
     "${APP_BASE_DIR}/mnt/webdav" \
-    "${APP_BASE_DIR}/mnt/movies" \
-    "${APP_BASE_DIR}/mnt/series" \
+    "${APP_BASE_DIR}/mnt/medias/movies" \
+    "${APP_BASE_DIR}/mnt/medias/series" \
     "${APP_BASE_DIR}/data/traefik/letsencrypt" \
     "${APP_BASE_DIR}/data/jellyfin/config" \
     "${APP_BASE_DIR}/data/prowlarr/config" \
@@ -71,8 +67,7 @@ fi
 FSTAB_LINE="${APP_BASE_DIR}/mnt/webdav ${APP_BASE_DIR}/mnt/webdav none bind,shared 0 0"
 grep -qF "$FSTAB_LINE" /etc/fstab || echo "$FSTAB_LINE" >> /etc/fstab
 
-say "Building and starting Docker Compose stack..."
-docker compose -f "${REPOSITORY_DIR}/compose.yml" build
+say "Starting Docker Compose stack..."
 docker compose -f "${REPOSITORY_DIR}/compose.yml" up -d
 
 say "Installation complete."
