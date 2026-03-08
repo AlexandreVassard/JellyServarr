@@ -1,7 +1,7 @@
 ---
 title: "Jellyfin Servarr WebDAV"
 subtitle: "Local"
-logo: "assets/logo.png"
+logo: "assets/logo.webp"
 
 header: true
 footer: false
@@ -27,11 +27,11 @@ services:
         subtitle: "Stream your personal media collection"
         url: "http://localhost:8096/web"
       - name: "Jellyseerr"
-        logo: "assets/tools/jellyseerr.png"
+        logo: "assets/tools/jellyseerr.webp"
         subtitle: "Request platform for Jellyfin media"
         url: "http://localhost:5055"
       - name: "Tautulli"
-        logo: "assets/tools/tautulli.png"
+        logo: "assets/tools/tautulli.webp"
         subtitle: "Monitor server activity and user statistics"
         url: "http://localhost:8181"
   - name: "Technical"
@@ -43,18 +43,18 @@ services:
         subtitle: "Reverse proxy dashboard"
         url: http://localhost:8080
       - name: "RDT Client"
-        logo: "assets/tools/rdtclient.png"
+        logo: "assets/tools/rdtclient.webp"
         subtitle: "Torrents downloader and manager"
         url: "http://localhost:6500"
       - name: "Prowlarr"
-        logo: assets/tools/prowlarr.png
+        logo: assets/tools/prowlarr.webp
         subtitle: "Indexer manager for Sonarr and Radarr"
         url: http://localhost:9696
       - name: "Radarr"
-        logo: assets/tools/radarr.png
+        logo: assets/tools/radarr.webp
         subtitle: "Automated movie downloader"
         url: http://localhost:7878
       - name: "Sonarr"
-        logo: assets/tools/sonarr.png
+        logo: assets/tools/sonarr.webp
         subtitle: "Automated TV series downloader"
         url: http://localhost:8989

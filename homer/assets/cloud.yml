@@ -15,11 +15,11 @@ services:
         subtitle: "Stream your personal media collection"
         url: "https://jellyfin.vsd.ovh/web"
       - name: "Jellyseerr"
-        logo: "assets/tools/jellyseerr.png"
+        logo: "assets/tools/jellyseerr.webp"
         subtitle: "Request platform for Jellyfin media"
         url: "https://jellyseerr.vsd.ovh"
       - name: "Tautulli"
-        logo: "assets/tools/tautulli.png"
+        logo: "assets/tools/tautulli.webp"
         subtitle: "Monitor server activity and user statistics"
         url: "https://tautulli.vsd.ovh"
   - name: "Technical"
@@ -27,18 +27,18 @@ services:
     class: "highlight-purple"
     items:
       - name: "RDT Client"
-        logo: "assets/tools/rdtclient.png"
+        logo: "assets/tools/rdtclient.webp"
         subtitle: "Torrents downloader and manager"
         url: "https://rdtclient.vsd.ovh"
       - name: "Prowlarr"
-        logo: assets/tools/prowlarr.png
+        logo: assets/tools/prowlarr.webp
         subtitle: "Indexer manager for Sonarr and Radarr"
         url: https://prowlarr.vsd.ovh
       - name: "Radarr"
-        logo: assets/tools/radarr.png
+        logo: assets/tools/radarr.webp
         subtitle: "Automated movie downloader"
         url: https://radarr.vsd.ovh
       - name: "Sonarr"
-        logo: assets/tools/sonarr.png
+        logo: assets/tools/sonarr.webp
         subtitle: "Automated TV series downloader"
         url: https://sonarr.vsd.ovh
