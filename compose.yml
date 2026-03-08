@@ -77,18 +77,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.homer.rule=Host(`homer.${TRAEFIK_HOST}`)"
       - "traefik.http.services.homer.loadbalancer.server.port=8080"
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:v3.3.24
-    container_name: flaresolverr
-    hostname: flaresolverr
-    restart: unless-stopped
-    networks:
-      - traefik
-    environment:
-      - LOG_LEVEL=info
-      - LOG_HTML=false
-    ports:
-      - 8191:8191
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:1.37.0
     container_name: prowlarr
