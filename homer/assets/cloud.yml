@@ -13,15 +13,15 @@ services:
       - name: Jellyfin
         logo: "assets/tools/jellyfin.webp"
         subtitle: "Stream your personal media collection"
-        url: "https://jellyfin.domain.tld/web"
+        url: "https://jellyfin.vsd.ovh/web"
       - name: "Jellyseerr"
         logo: "assets/tools/jellyseerr.png"
         subtitle: "Request platform for Jellyfin media"
-        url: "https://jellyseerr.domain.tld"
+        url: "https://jellyseerr.vsd.ovh"
       - name: "Tautulli"
         logo: "assets/tools/tautulli.png"
         subtitle: "Monitor server activity and user statistics"
-        url: "https://tautulli.domain.tld"
+        url: "https://tautulli.vsd.ovh"
   - name: "Technical"
     icon: "fa-solid fa-helmet-safety"
     class: "highlight-purple"
@@ -29,16 +29,16 @@ services:
       - name: "RDT Client"
         logo: "assets/tools/rdtclient.png"
         subtitle: "Torrents downloader and manager"
-        url: "https://rdtclient.domain.tld"
+        url: "https://rdtclient.vsd.ovh"
       - name: "Prowlarr"
         logo: assets/tools/prowlarr.png
         subtitle: "Indexer manager for Sonarr and Radarr"
-        url: https://prowlarr.domain.tld
+        url: https://prowlarr.vsd.ovh
       - name: "Radarr"
         logo: assets/tools/radarr.png
         subtitle: "Automated movie downloader"
-        url: https://radarr.domain.tld
+        url: https://radarr.vsd.ovh
       - name: "Sonarr"
         logo: assets/tools/sonarr.png
         subtitle: "Automated TV series downloader"
-        url: https://sonarr.domain.tld
+        url: https://sonarr.vsd.ovh

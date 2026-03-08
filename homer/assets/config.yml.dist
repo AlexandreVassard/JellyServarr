@@ -23,7 +23,7 @@ services:
     icon: "fa-solid fa-film"
     items:
       - name: Jellyfin
-        logo: "assets/tools/jellyfin.png"
+        logo: "assets/tools/jellyfin.webp"
         subtitle: "Stream your personal media collection"
         url: "http://localhost:8096/web"
       - name: "Jellyseerr"
