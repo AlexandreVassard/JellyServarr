@@ -33,7 +33,7 @@ A self-hosted media stack powered by Docker Compose. It mounts a remote WebDAV s
 ### 1. Clone the repository
 
 ```shell
-git clone https://gitlab.com/alexandrevassard1/jellyservarr.git
+git clone https://github.com/AlexandreVassard/JellyServarr.git
 cd jellyservarr
 ```
 
