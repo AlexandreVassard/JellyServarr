@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 EnvironmentFile=/etc/jellyfin-webdav/.env.default
 EnvironmentFile=-/etc/jellyfin-webdav/.env
+ExecStartPre=-/bin/fusermount -uz /mnt/jellyfin-webdav
 ExecStartPre=/bin/mkdir -p /mnt/jellyfin-webdav
 ExecStart=/usr/local/bin/jellyfin-webdav.sh
 ExecStop=/bin/fusermount -u /mnt/jellyfin-webdav
