@@ -2,7 +2,7 @@ name: jellyfin_servarr_webdav
 
 services:
   traefik:
-    image: traefik:v3.4
+    image: traefik:3.6
     container_name: traefik
     hostname: traefik
     restart: unless-stopped
