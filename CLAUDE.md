@@ -10,13 +10,14 @@ A Docker Compose stack for self-hosting Jellyfin with satellite services (Radarr
 
 - **Traefik**: Reverse proxy with Let's Encrypt TLS. All services get `<service>.${TRAEFIK_HOST}` routes.
 - **Jellyfin**: Media server. Accesses WebDAV mount at `${APP_BASE_DIR}/mnt/webdav`.
-- **Radarr / Sonarr**: Automated movie/TV downloaders. Depend on Prowlarr and RDTClient being healthy.
+- **Radarr / Sonarr**: Automated movie/TV downloaders. Depend on Prowlarr, RDTClient, and rclone being healthy.
 - **Prowlarr**: Indexer manager. Custom indexer definitions in `prowlarr/definitions/` are copied into the container on first run (not overwritten if already present).
 - **RDTClient**: Download client (Real-Debrid / AllDebrid torrents). Downloads land in `${APP_BASE_DIR}/data/rdtclient/downloads`, shared as `/downloads` with Radarr/Sonarr.
 - **Jellyseerr**: Media request platform. Depends on Radarr and Sonarr being healthy.
 - **Tautulli**: Activity monitor. Depends on Jellyfin being healthy.
 - **Homer**: Dashboard. Has two views: local (`config.yml`) and cloud (`cloud.yml`). Both are generated from `.dist` templates at container start using `TRAEFIK_HOST` and `HOMER_LOCAL_IP` env vars.
-- **jellyfin-webdav** (systemd): Runs on the host (not in Docker). Uses rclone to mount the WebDAV remote at `${APP_BASE_DIR}/mnt/webdav`, then loops: refreshes the VFS cache and triggers Jellyfin library scans.
+- **rclone**: Docker service that mounts the WebDAV remote at `${APP_BASE_DIR}/mnt/webdav` via FUSE with rshared propagation. Exposes RC API on port 5572 (container-internal only).
+- **media-sync** (sidecar): Alpine container that runs `media-sync.sh`. Waits for rclone to be healthy, then loops: refreshes the VFS cache via rclone RC API, syncs symlinks, and triggers Jellyfin library scans.
 
 ## Key Files
 
@@ -24,32 +25,27 @@ A Docker Compose stack for self-hosting Jellyfin with satellite services (Radarr
 |------|---------|
 | `.env` | Docker Compose environment (copy from `.env.example`) |
 | `rclone.conf` | At `${APP_BASE_DIR}/config/rclone.conf` on the host (copy from `rclone.conf.example`) |
-| `${APP_BASE_DIR}/config/.env` | Host-side overrides for jellyfin-webdav service (copy from `.jellyfin-webdav.env.example`) |
-| `homer/assets/config.yml.dist` | Local dashboard template |
-| `homer/assets/cloud.yml.dist` | Cloud dashboard template |
+| `services/homer/assets/config.yml.dist` | Local dashboard template |
+| `services/homer/assets/cloud.yml.dist` | Cloud dashboard template |
 | `prowlarr/definitions/ygg-api.yml` | Custom Prowlarr indexer definition for YGG |
-| `install/linux/scripts/jellyfin-webdav.sh` | Main script for the WebDAV mount + Jellyfin scan loop |
-| `install/linux/services/jellyfin-webdav.service` | Systemd unit for the above |
+| `services/media-sync/media-sync.sh` | Scan loop script (runs inside the media-sync sidecar container) |
+| `scripts/install.sh` | Host install script (FUSE setup, bind mount, stack launch) |
+| `scripts/uninstall.sh` | Host uninstall script |
 
 ## Setup Commands
 
 ```bash
 # 1. Configure Docker env
 cp .env.example .env
+# Edit .env: set WEBDAV_PATH, JELLYFIN_TOKEN, and any other values
 
 # 2. Configure rclone WebDAV (obscure password first)
-sudo mkdir -p /opt/jellyfin-servarr/config
-sudo cp rclone.conf.example /opt/jellyfin-servarr/config/rclone.conf
+sudo mkdir -p /opt/jellyservarr/config
+sudo cp rclone.conf.example /opt/jellyservarr/config/rclone.conf
 # Obscure password: docker run --rm rclone/rclone:latest obscure 'your_password'
 
-# 3. (Optional) Override jellyfin-webdav service defaults
-sudo cp .jellyfin-webdav.env.example /opt/jellyfin-servarr/config/.env
-
-# 4. Install systemd service (requires rclone on host)
-sudo bash install/linux/install.sh
-
-# 5. Start Docker stack
-docker compose up -d
+# 3. Install (sets up FUSE, shared bind mount, fstab, builds and starts the stack)
+sudo bash scripts/install.sh
 ```
 
 ## Runtime Commands
@@ -61,22 +57,25 @@ docker compose down
 
 # View logs for a specific service
 docker compose logs -f jellyfin
-docker compose logs -f jellyfin-webdav  # (not applicable — use journalctl)
+docker compose logs -f rclone
+docker compose logs -f media-sync
 
-# WebDAV service logs
-journalctl -u jellyfin-webdav -f
+# Restart a service
+docker compose restart rclone
+docker compose restart media-sync
 
-# Restart WebDAV service
-sudo systemctl restart jellyfin-webdav
-
-# Uninstall systemd service
-sudo bash install/linux/uninstall.sh
+# Uninstall
+sudo bash scripts/uninstall.sh
 ```
 
 ## Architecture Notes
 
-- The WebDAV mount (`${APP_BASE_DIR}/mnt/webdav`) is shared between the host (via systemd) and Docker containers (Jellyfin, Radarr, Sonarr, RDTClient) via a bind mount. The host must mount it before Docker containers start.
-- The `jellyfin-webdav` systemd service loads `${APP_BASE_DIR}/config/.env.default` first, then `${APP_BASE_DIR}/config/.env` as an override (the `-` prefix in the unit file makes the override optional). `APP_BASE_DIR` is substituted at install time (default: `/opt/jellyfin-servarr`).
+- **FUSE + rshared propagation**: rclone runs in a Docker container with `cap_add: SYS_ADMIN` and `/dev/fuse`. The WebDAV mount point `${APP_BASE_DIR}/mnt/webdav` is bind-mounted with `propagation: rshared` so the FUSE mount created inside the container propagates to the host and sibling containers.
+- **Shared bind mount**: `install.sh` creates a `bind,shared` entry in `/etc/fstab` so the mount point survives reboots with the correct propagation mode. Without this, rclone's FUSE mount stays container-local after reboot.
+- **`--allow-other`**: Required so containers running as PUID/PGID can read the mount. Enabled via `user_allow_other` in `/etc/fuse.conf` (added by `install.sh`).
+- **`--rc-no-auth`**: RC authentication is disabled. Port 5572 is never exposed to the host (no `ports:` entry), so this is safe within the Docker network.
+- **Restart resilience**: If the rclone container restarts, the media-sync sidecar detects RC unreachable (loop condition fails), exits with code 1, and Docker restarts it. `depends_on` only applies at initial startup — this is the correct behavior.
+- **rclone remote name**: `jellyfin-webdav` (as configured in `rclone.conf`).
 - Homer's entrypoint generates `config.yml` and `cloud.yml` from `.dist` templates each time the container starts — do not edit the non-`.dist` files directly.
 - Prowlarr's entrypoint only copies custom definitions if they don't already exist in `/config/Definitions/Custom/`.
 - The Jellyfin library scan API is `POST /Library/Refresh` with header `X-Emby-Token: <token>`, which triggers a full library scan.

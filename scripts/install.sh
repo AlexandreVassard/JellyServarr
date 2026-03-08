@@ -2,11 +2,8 @@
 set -e
 
 APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyfin-servarr}"
-SERVICE_DIR="${SERVICE_DIR:-/etc/systemd/system}"
-BIN_DIR="${BIN_DIR:-${APP_BASE_DIR}/bin}"
-ENV_DIR="${ENV_DIR:-${APP_BASE_DIR}/config}"
 WORKING_DIR="${WORKING_DIR:-$(readlink -f "$(dirname "$0")")}"
-REPOSITORY_DIR="${REPOSITORY_DIR:-$(readlink -f "$WORKING_DIR/../..")}"
+REPOSITORY_DIR="${REPOSITORY_DIR:-$(readlink -f "$WORKING_DIR/..")}"
 
 say() {
     echo >&2 "$(date '+%Y-%m-%d %H:%M:%S') >> $*"
@@ -22,12 +19,12 @@ say "Checking configuration files..."
 
 if [ ! -d "${APP_BASE_DIR}/config" ]; then
     say "Creating Jellyfin WebDAV configuration folder..."
-    mkdir -p "$ENV_DIR"
+    mkdir -p "${APP_BASE_DIR}/config"
 else
     say "Jellyfin WebDAV configuration folder exists, don't need to create it."
 fi
 
-RCLONE_CONF_FILE="$ENV_DIR/rclone.conf"
+RCLONE_CONF_FILE="${APP_BASE_DIR}/config/rclone.conf"
 if [ ! -f "$RCLONE_CONF_FILE" ]; then
     say "No rclone configuration file found ($RCLONE_CONF_FILE)"
     say "Please create this file from the example: "
@@ -38,16 +35,12 @@ else
     say "\"$RCLONE_CONF_FILE\" found."
 fi
 
-say "Copying default environment file..."
-cp "${REPOSITORY_DIR}/.jellyfin-webdav.env.example" "$ENV_DIR/.env.default"
-
-JELLYFIN_WEBDAV_ENV_FILE="$ENV_DIR/.env"
-if [ ! -f "$JELLYFIN_WEBDAV_ENV_FILE" ]; then
-    say "WARNING : No environment file found ($JELLYFIN_WEBDAV_ENV_FILE)."
-    say "Default values in \"$ENV_DIR/.env.default\" will be used."
-else
-    say "\"$JELLYFIN_WEBDAV_ENV_FILE\" found."
-    say "Default values in \"$ENV_DIR/.env.default\" will be overriden by \"$JELLYFIN_WEBDAV_ENV_FILE\"."
+if systemctl is-active --quiet jellyfin-webdav.service 2>/dev/null; then
+    say "Stopping legacy jellyfin-webdav systemd service..."
+    systemctl stop jellyfin-webdav.service
+    systemctl disable jellyfin-webdav.service
+    rm -f /etc/systemd/system/jellyfin-webdav.service
+    systemctl daemon-reload
 fi
 
 say "Creating mount and data directories..."
@@ -63,27 +56,23 @@ mkdir -p \
     "${APP_BASE_DIR}/data/jellyseerr/config" \
     "${APP_BASE_DIR}/data/tautulli/config" \
     "${APP_BASE_DIR}/data/rdtclient/db" \
-    "${APP_BASE_DIR}/data/rdtclient/downloads"
+    "${APP_BASE_DIR}/data/rdtclient/downloads" \
+    "${APP_BASE_DIR}/data/rclone/cache"
 
-say "Installing WebDAV services..."
+say "Enabling FUSE allow_other support..."
+grep -q '^user_allow_other' /etc/fuse.conf 2>/dev/null \
+    || echo 'user_allow_other' >> /etc/fuse.conf
 
-say "Copying systemd service file..."
-mkdir -p "$BIN_DIR"
-sed "s|@@APP_BASE_DIR@@|${APP_BASE_DIR}|g" \
-    "${WORKING_DIR}/services/jellyfin-webdav.service" \
-    > "$SERVICE_DIR/jellyfin-webdav.service"
+say "Setting up shared bind mount for WebDAV mount point..."
+if ! mountpoint -q "${APP_BASE_DIR}/mnt/webdav"; then
+    mount --bind "${APP_BASE_DIR}/mnt/webdav" "${APP_BASE_DIR}/mnt/webdav"
+    mount --make-shared "${APP_BASE_DIR}/mnt/webdav"
+fi
+FSTAB_LINE="${APP_BASE_DIR}/mnt/webdav ${APP_BASE_DIR}/mnt/webdav none bind,shared 0 0"
+grep -qF "$FSTAB_LINE" /etc/fstab || echo "$FSTAB_LINE" >> /etc/fstab
 
-say "Copying jellyfin-webdav.sh script..."
-cp "${WORKING_DIR}/scripts/jellyfin-webdav.sh" "$BIN_DIR/"
-chmod +x "$BIN_DIR/jellyfin-webdav.sh"
-
-say "Reloading systemd daemon..."
-systemctl daemon-reload
-
-say "Enabling service..."
-systemctl enable jellyfin-webdav.service
-
-say "Starting service..."
-systemctl restart jellyfin-webdav.service
+say "Building and starting Docker Compose stack..."
+docker compose -f "${REPOSITORY_DIR}/compose.yml" build
+docker compose -f "${REPOSITORY_DIR}/compose.yml" up -d
 
 say "Installation complete."

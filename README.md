@@ -1,82 +1,170 @@
-# Jellyfin Servarr WebDAV
+# JellyServarr
 
-This project provides a complete stack to host a Jellyfin server and its satellite services (Radarr, Sonarr, Prowlarr, Jellyseerr, Tautulli, Homer, RdtClient), with automatic management of remote WebDAV storage—all orchestrated with Docker Compose and Traefik.
+A self-hosted media stack powered by Docker Compose. It mounts a remote WebDAV storage with rclone, keeps it in sync, and automatically triggers Jellyfin library scans when new media arrives — all behind a Traefik reverse proxy with automatic HTTPS.
 
 ![dashboard screenshot](docs/images/dashboard.png)
 
-## Key Features
+## Services
 
-- Automatic mounting of WebDAV storage (via rclone)
-- Regular refresh of WebDAV content
-- Automatic triggering of Jellyfin library scans when new media is added
-- Complete media services stack (Jellyfin, Radarr, Sonarr, etc.)
+| Service | Role | URL |
+|---|---|---|
+| **Jellyfin** | Media server | `jellyfin.yourdomain.tld` |
+| **Radarr** | Movie automation | `radarr.yourdomain.tld` |
+| **Sonarr** | TV show automation | `sonarr.yourdomain.tld` |
+| **Prowlarr** | Indexer manager | `prowlarr.yourdomain.tld` |
+| **Jellyseerr** | Media request platform | `jellyseerr.yourdomain.tld` |
+| **Tautulli** | Activity monitoring | `tautulli.yourdomain.tld` |
+| **RDTClient** | Download client (Real-Debrid / AllDebrid) | `rdtclient.yourdomain.tld` |
+| **Homer** | Dashboard | `homer.yourdomain.tld` |
+| **Traefik** | Reverse proxy + TLS | `:8080` (dashboard) |
+| **rclone** | WebDAV mount | internal |
+| **media-sync** | Sync sidecar | internal |
 
 ## Requirements
 
-- Linux system (with [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and [Docker](https://github.com/docker/docker-install) installed)
-- Access to a WebDAV server (Nextcloud, Seedbox, RealDebrid, AllDebrid, etc.)
-- A domain or subdomain for Traefik access (optional)
+- A Linux machine with [Docker](https://github.com/docker/docker-install) and [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed
+- A WebDAV server (Nextcloud, seedbox, RealDebrid, AllDebrid, etc.)
+- A domain pointed at your server (for Traefik HTTPS routing)
 
-## Linux installation
+---
+
+## Installation
 
 ### 1. Clone the repository
 
-You will need all the files of this repository.
-
-This will create automatically a `jellyfin-servarr-webdav` folder.
-
 ```shell
-git clone https://gitlab.com/alexandrevassard1/jellyfin-servarr-webdav.git
-cd jellyfin-servarr-webdav
+git clone https://gitlab.com/alexandrevassard1/jellyservarr.git
+cd jellyservarr
 ```
 
-### 2. Configure environment/config files
+### 2. Configure the environment
 
-Copy and fill Docker environment file :
+Copy the example file and open it in your editor:
 
 ```shell
 cp .env.example .env
+nano .env
 ```
 
-Create service needed folder :
+At minimum, set these values:
+
+| Variable | Description | Example |
+|---|---|---|
+| `TRAEFIK_HOST` | Your domain | `yourdomain.tld` |
+| `PUID` / `PGID` | Your host user/group ID (avoids permission issues) | `1000` / `1000` |
+| `TZ` | Your timezone | `Europe/Paris` |
+| `HOMER_LOCAL_IP` | Your server's local IP address | `192.168.1.10` |
+| `WEBDAV_PATH` | Path inside your WebDAV remote (leave empty for root) | `media/` |
+
+> **To find your PUID/PGID**, run `id` in your terminal.
+
+`JELLYFIN_TOKEN` can be left empty for now — see [Post-install setup](#post-install-setup) below.
+
+### 3. Configure the rclone WebDAV remote
+
+Copy the example config to its expected location and edit it:
 
 ```shell
-sudo mkdir -p /etc/jellyfin-webdav
+sudo mkdir -p /opt/jellyservarr/config
+sudo cp rclone.conf.example /opt/jellyservarr/config/rclone.conf
+sudo nano /opt/jellyservarr/config/rclone.conf
 ```
 
-Copy and fill Rclone WebDAV config file :
+Fill in your WebDAV server URL, username, and password. The password must be **obscured** using rclone — run this to get the obscured value:
 
 ```shell
-sudo cp rclone.conf.example /etc/jellyfin-webdav/rclone.conf
-sudo nano /etc/jellyfin-webdav/rclone.conf
+docker run --rm rclone/rclone:latest obscure 'your_password'
 ```
 
-Jellyfin WebDAV service will use `/etc/jellyfin-webdav/.env.default` by default.
+Then paste the output into the `pass =` field in `rclone.conf`.
 
-If you need to override some values, create a local env file :
+### 4. Run the install script
 
 ```shell
-sudo nano /etc/jellyfin-webdav/.env
+sudo bash scripts/install.sh
 ```
 
-### 3. Run install script
+This script handles all low-level setup automatically:
+
+1. **Checks** that `rclone.conf` exists and exits early if not
+2. **Creates** all data directories under `/opt/jellyservarr/` (config, cache, mounts, etc.)
+3. **Enables FUSE `allow_other`** in `/etc/fuse.conf` so containers can read the WebDAV mount
+4. **Sets up a shared bind mount** at `/opt/jellyservarr/mnt/webdav` and persists it in `/etc/fstab` — this makes rclone's FUSE mount visible to Jellyfin and sibling containers even after reboot
+5. **Builds and starts** the full Docker Compose stack
+
+Once it completes, all services are running and will **restart automatically on reboot** via Docker's `restart: unless-stopped` policy.
+
+---
+
+## Post-install setup
+
+### Generate a Jellyfin API key
+
+The `media-sync` sidecar needs a Jellyfin API key to trigger library scans. Since Jellyfin needs to be running to generate one, do this after the first start:
+
+1. Open Jellyfin in your browser: `https://jellyfin.yourdomain.tld`
+2. Complete the initial setup wizard
+3. Go to **Administration → API Keys → +**
+4. Copy the generated token
+5. Paste it into `.env`:
+   ```
+   JELLYFIN_TOKEN=your_token_here
+   ```
+6. Restart the sidecar:
+   ```shell
+   docker compose restart media-sync
+   ```
+
+---
+
+## Runtime commands
 
 ```shell
-sudo bash install/linux/install.sh
-```
-
-### 4. Start Jellyfin Servarr WebDAV
-
-```shell
+# Start or stop the entire stack
 docker compose up -d
+docker compose down
+
+# Restart a specific service
+docker compose restart rclone
+docker compose restart media-sync
+
+# Follow logs for a service
+docker compose logs -f rclone
+docker compose logs -f media-sync
+docker compose logs -f jellyfin
+
+# Uninstall (removes mounts, fstab entry, and containers)
+sudo bash scripts/uninstall.sh
 ```
+
+---
 
 ## Troubleshooting
 
-- **WebDAV mount not working**: Check `rclone.conf` configuration and logs for the `jellyfin-webdav` service.
-- **Jellyfin scan not triggered**: Make sure `JELLYFIN_TOKEN` is correctly set in `/etc/jellyfin-webdav/.env`.
-- **Permission issues**: Adjust `PUID` / `PGID` in `.env` to match your user.
+**WebDAV mount is not working**
+Check your `rclone.conf` credentials, then inspect logs:
+```shell
+docker compose logs -f rclone
+```
 
-## Useful Links
+**Jellyfin library scan is not triggering**
+Make sure `JELLYFIN_TOKEN` is set in `.env` and the sidecar is running:
+```shell
+docker compose logs -f media-sync
+```
 
-- [Jellyfin Documentation](https://jellyfin.org/docs/)
+**Permission errors on media files**
+Set `PUID` and `PGID` in `.env` to match your host user (`id` to check).
+
+**Traefik not issuing certificates**
+Make sure your domain points to your server's public IP and that ports 80/443 are open.
+
+---
+
+## Architecture notes
+
+- **FUSE + rshared propagation**: rclone mounts the WebDAV remote inside a container using FUSE. The mount point is bind-mounted with `rshared` propagation so it becomes visible to Jellyfin and other containers — and to the host itself.
+- **Shared bind mount in fstab**: The `install.sh` script adds a `bind,shared` entry in `/etc/fstab`. Without this, the propagation mode resets after reboot, breaking the mount.
+- **Sidecar restart resilience**: If rclone restarts, the `media-sync` sidecar detects the RC API is unreachable and exits with code 1. Docker then restarts it, which re-establishes the dependency chain correctly.
+- **Homer templates**: `config.yml` and `cloud.yml` are generated from `.dist` templates each time Homer starts, substituting `TRAEFIK_HOST` and `HOMER_LOCAL_IP`. Edit the `.dist` files, not the generated ones.
+- **Prowlarr custom indexers**: Definitions in `prowlarr/definitions/` are copied into the container only if they don't already exist, so your edits are preserved across restarts.

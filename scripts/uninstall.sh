@@ -2,13 +2,9 @@
 set -e
 
 APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyfin-servarr}"
-SERVICE_DIR="${SERVICE_DIR:-/etc/systemd/system}"
-SERVICE_NAME="jellyfin-webdav"
-BIN_DIR="${BIN_DIR:-${APP_BASE_DIR}/bin}"
-ENV_DIR="${ENV_DIR:-${APP_BASE_DIR}/config}"
-SERVICE_FILE="${SERVICE_DIR}/${SERVICE_NAME}.service"
-BIN_FILE="${BIN_DIR}/${SERVICE_NAME}.sh"
-CONFIG_DIR="${ENV_DIR}"
+WORKING_DIR="${WORKING_DIR:-$(readlink -f "$(dirname "$0")")}"
+REPOSITORY_DIR="${REPOSITORY_DIR:-$(readlink -f "$WORKING_DIR/..")}"
+CONFIG_DIR="${APP_BASE_DIR}/config"
 
 say() {
     echo >&2 "$(date '+%Y-%m-%d %H:%M:%S') >> $*"
@@ -20,18 +16,13 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-say "Stopping and disabling systemd service..."
-systemctl stop "$SERVICE_NAME.service" || say "Service not running."
-systemctl disable "$SERVICE_NAME.service" || say "Service not enabled."
+say "Stopping Docker Compose stack..."
+docker compose -f "${REPOSITORY_DIR}/compose.yml" down || say "Stack not running."
 
-say "Removing systemd service file..."
-rm -f "$SERVICE_FILE"
-
-say "Reloading systemd daemon..."
-systemctl daemon-reload
-
-say "Removing executable script..."
-rm -f "$BIN_FILE"
+say "Unmounting shared WebDAV mount point..."
+umount -l "${APP_BASE_DIR}/mnt/webdav" 2>/dev/null || say "Mount not active."
+FSTAB_LINE="${APP_BASE_DIR}/mnt/webdav ${APP_BASE_DIR}/mnt/webdav none bind,shared 0 0"
+grep -vF "$FSTAB_LINE" /etc/fstab > /tmp/fstab.tmp && mv /tmp/fstab.tmp /etc/fstab
 
 if [ -d "$CONFIG_DIR" ]; then
     read -p "Do you also want to delete the config directory at $CONFIG_DIR? [y/N]: " CONFIRM

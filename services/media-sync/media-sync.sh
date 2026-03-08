@@ -5,26 +5,15 @@ APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyfin-servarr}"
 
 JELLYFIN_ENABLE_SCAN="${JELLYFIN_ENABLE_SCAN:-true}"
 JELLYFIN_SCAN_DELAY="${JELLYFIN_SCAN_DELAY:-10}"
-JELLYFIN_URL="${JELLYFIN_URL:-http://localhost:8096}"
+JELLYFIN_URL="${JELLYFIN_URL:-http://jellyfin:8096}"
 JELLYFIN_TOKEN="${JELLYFIN_TOKEN:-}"
 
 MOVIES_DIR="${MOVIES_DIR:-}"
 SERIES_DIR="${SERIES_DIR:-}"
-WEBDAV_MOUNT_DIR="${WEBDAV_MOUNT_DIR:-/opt/jellyfin-servarr/mnt/webdav}"
+WEBDAV_MOUNT_DIR="${WEBDAV_MOUNT_DIR:-/mnt/webdav}"
 
-WEBDAV_PATH="${WEBDAV_PATH:-}"
 WEBDAV_REFRESH_INTERVAL="${WEBDAV_REFRESH_INTERVAL:-60}"
 WEBDAV_REFRESH_INITIAL_DELAY="${WEBDAV_REFRESH_INITIAL_DELAY:-15}"
-
-WEBDAV_CACHE_DIR="${WEBDAV_CACHE_DIR:-/var/cache/jellyfin-servarr}"
-WEBDAV_VFS_CACHE_MODE="${WEBDAV_VFS_CACHE_MODE:-full}"
-WEBDAV_VFS_CACHE_MAX_SIZE="${WEBDAV_VFS_CACHE_MAX_SIZE:-10G}"
-WEBDAV_VFS_CACHE_MAX_AGE="${WEBDAV_VFS_CACHE_MAX_AGE:-1h}"
-WEBDAV_VFS_READ_CHUNK_SIZE="${WEBDAV_VFS_READ_CHUNK_SIZE:-32M}"
-WEBDAV_VFS_READ_CHUNK_SIZE_LIMIT="${WEBDAV_VFS_READ_CHUNK_SIZE_LIMIT:-512M}"
-WEBDAV_BUFFER_SIZE="${WEBDAV_BUFFER_SIZE:-8M}"
-WEBDAV_MULTI_THREAD_STREAMS="${WEBDAV_MULTI_THREAD_STREAMS:-4}"
-WEBDAV_CUTOFF_MODE="${WEBDAV_CUTOFF_MODE:-hard}"
 
 say() {
     echo >&2 "$(date '+%Y-%m-%d %H:%M:%S') >> $*"
@@ -220,35 +209,16 @@ sync_symlinks() {
     say "Symlink sync complete."
 }
 
-say "Mounting Jellyfin WebDAV..."
-mkdir -p "${WEBDAV_CACHE_DIR}"
-rclone mount jellyfin-webdav:"${WEBDAV_PATH}" "${WEBDAV_MOUNT_DIR}" \
-    --cache-dir "${WEBDAV_CACHE_DIR}" \
-    --dir-cache-time "${WEBDAV_REFRESH_INTERVAL}s" \
-    --vfs-cache-mode "${WEBDAV_VFS_CACHE_MODE}" \
-    --vfs-cache-max-size "${WEBDAV_VFS_CACHE_MAX_SIZE}" \
-    --vfs-cache-max-age "${WEBDAV_VFS_CACHE_MAX_AGE}" \
-    --vfs-read-chunk-size "${WEBDAV_VFS_READ_CHUNK_SIZE}" \
-    --vfs-read-chunk-size-limit "${WEBDAV_VFS_READ_CHUNK_SIZE_LIMIT}" \
-    --buffer-size "${WEBDAV_BUFFER_SIZE}" \
-    --multi-thread-streams "${WEBDAV_MULTI_THREAD_STREAMS}" \
-    --cutoff-mode="${WEBDAV_CUTOFF_MODE}" \
-    --network-mode \
-    --allow-other \
-    --rc \
-    --config "${APP_BASE_DIR}/config/rclone.conf" &
-
-WEBDAV_MOUNT_PID=$!
-
 sleep "${WEBDAV_REFRESH_INITIAL_DELAY}"
 
 sync_symlinks || say "Symlink sync failed"
 
 say "Starting refresh loop..."
 
-while kill -0 $WEBDAV_MOUNT_PID 2>/dev/null; do
+while wget -q -O /dev/null "http://rclone:5572/vfs/stats" 2>/dev/null; do
     say "Refreshing WebDAV cache..."
-    rclone rc vfs/refresh recursive=true || say "Jellyfin WebDAV refresh failed"
+    wget -q -O /dev/null --post-data "recursive=true" "http://rclone:5572/vfs/refresh" \
+        2>&1 || say "Jellyfin WebDAV refresh failed"
     sync_symlinks || say "Symlink sync failed"
 
     if [ "$JELLYFIN_ENABLE_SCAN" = true ]; then
@@ -259,10 +229,11 @@ while kill -0 $WEBDAV_MOUNT_PID 2>/dev/null; do
             sleep "${JELLYFIN_SCAN_DELAY}"
 
             say "Triggering Jellyfin library scan..."
-            curl -X POST "${JELLYFIN_URL}/Library/Refresh" \
+            wget -q -O /dev/null \
                 --header "X-Emby-Token: ${JELLYFIN_TOKEN}" \
-                --silent --show-error ||
-                say "Failed to trigger Jellyfin library scan"
+                --post-data "" \
+                "${JELLYFIN_URL}/Library/Refresh" \
+                2>&1 || say "Failed to trigger Jellyfin library scan"
         fi
     else
         say "Jellyfin scan is disabled. Skipping..."
@@ -272,5 +243,5 @@ while kill -0 $WEBDAV_MOUNT_PID 2>/dev/null; do
     sleep "${WEBDAV_REFRESH_INTERVAL}"
 done
 
-say "Mount process exited. Exiting."
+say "rclone RC unreachable. Exiting."
 exit 1

@@ -1,0 +1,60 @@
+---
+title: "JellyServarr"
+subtitle: "Local"
+logo: "assets/logo.webp"
+
+header: true
+footer: false
+
+theme: default
+
+columns: "3"
+
+defaults:
+  layout: list
+
+links:
+  - name: "Cloud"
+    icon: "fas fa-cloud"
+    url: "#cloud"
+
+services:
+  - name: "Applications"
+    icon: "fa-solid fa-film"
+    items:
+      - name: Jellyfin
+        logo: "assets/tools/jellyfin.webp"
+        subtitle: "Stream your personal media collection"
+        url: "http://192.168.1.41:8096/web"
+      - name: "Jellyseerr"
+        logo: "assets/tools/jellyseerr.webp"
+        subtitle: "Request platform for Jellyfin media"
+        url: "http://192.168.1.41:5055"
+      - name: "Tautulli"
+        logo: "assets/tools/tautulli.webp"
+        subtitle: "Monitor server activity and user statistics"
+        url: "http://192.168.1.41:8181"
+  - name: "Technical"
+    icon: "fa-solid fa-helmet-safety"
+    class: "highlight-purple"
+    items:
+      - name: "Traefik"
+        logo: "assets/tools/traefik.svg"
+        subtitle: "Reverse proxy dashboard"
+        url: http://192.168.1.41:8080
+      - name: "RDT Client"
+        logo: "assets/tools/rdtclient.webp"
+        subtitle: "Torrents downloader and manager"
+        url: "http://192.168.1.41:6500"
+      - name: "Prowlarr"
+        logo: assets/tools/prowlarr.webp
+        subtitle: "Indexer manager for Sonarr and Radarr"
+        url: http://192.168.1.41:9696
+      - name: "Radarr"
+        logo: assets/tools/radarr.webp
+        subtitle: "Automated movie downloader"
+        url: http://192.168.1.41:7878
+      - name: "Sonarr"
+        logo: assets/tools/sonarr.webp
+        subtitle: "Automated TV series downloader"
+        url: http://192.168.1.41:8989

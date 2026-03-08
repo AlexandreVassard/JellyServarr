@@ -30,11 +30,79 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${APP_BASE_DIR}/data/traefik/letsencrypt:/letsencrypt
+  rclone:
+    image: rclone/rclone:latest
+    container_name: rclone
+    hostname: rclone
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    security_opt:
+      - apparmor:unconfined
+    env_file:
+      - .env
+    volumes:
+      - ${APP_BASE_DIR}/config/rclone.conf:/config/rclone/rclone.conf:ro
+      - ${APP_BASE_DIR}/data/rclone/cache:/cache
+      - type: bind
+        source: ${APP_BASE_DIR}/mnt/webdav
+        target: /mnt/webdav
+        bind:
+          propagation: rshared
+    command: >
+      mount jellyfin-webdav:${WEBDAV_PATH}
+      /mnt/webdav
+      --cache-dir /cache
+      --dir-cache-time ${WEBDAV_REFRESH_INTERVAL:-60}s
+      --vfs-cache-mode ${WEBDAV_VFS_CACHE_MODE:-full}
+      --vfs-cache-max-size ${WEBDAV_VFS_CACHE_MAX_SIZE:-10G}
+      --vfs-cache-max-age ${WEBDAV_VFS_CACHE_MAX_AGE:-1h}
+      --vfs-read-chunk-size ${WEBDAV_VFS_READ_CHUNK_SIZE:-32M}
+      --vfs-read-chunk-size-limit ${WEBDAV_VFS_READ_CHUNK_SIZE_LIMIT:-512M}
+      --buffer-size ${WEBDAV_BUFFER_SIZE:-8M}
+      --multi-thread-streams ${WEBDAV_MULTI_THREAD_STREAMS:-4}
+      --cutoff-mode=${WEBDAV_CUTOFF_MODE:-hard}
+      --network-mode
+      --allow-other
+      --allow-non-empty
+      --rc
+      --rc-no-auth
+      --rc-addr :5572
+    healthcheck:
+      test: ["CMD", "rclone", "rc", "vfs/stats"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - traefik
+  media-sync:
+    image: bash:alpine3.21
+    container_name: media-sync
+    hostname: media-sync
+    restart: unless-stopped
+    depends_on:
+      rclone:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./services/media-sync/media-sync.sh:/media-sync.sh:ro
+      - ${APP_BASE_DIR}/mnt/webdav:/mnt/webdav:ro
+      - ${APP_BASE_DIR}/mnt/medias:/mnt/medias
+    command: ["/bin/bash", "/media-sync.sh"]
+    networks:
+      - traefik
   jellyfin:
     image: lscr.io/linuxserver/jellyfin:10.10.7
     container_name: jellyfin
     hostname: jellyfin
     restart: unless-stopped
+    depends_on:
+      rclone:
+        condition: service_healthy
     networks:
       - traefik
     ports:
@@ -45,9 +113,8 @@ services:
       - .env
     volumes:
       - ${APP_BASE_DIR}/data/jellyfin/config:/config
-      - ${APP_BASE_DIR}/mnt/webdav:${APP_BASE_DIR}/mnt/webdav
-      - ${APP_BASE_DIR}/mnt/movies:${APP_BASE_DIR}/mnt/movies
-      - ${APP_BASE_DIR}/mnt/series:${APP_BASE_DIR}/mnt/series
+      - ${APP_BASE_DIR}/mnt/webdav:/mnt/webdav
+      - ${APP_BASE_DIR}/mnt/medias:/medias
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8096/health"]
       interval: 30s
@@ -73,8 +140,8 @@ services:
     environment:
       - INIT_ASSETS=0
     volumes:
-      - ./homer/assets:/www/assets
-      - ./homer/entrypoint.sh:/replace-urls.sh
+      - ./services/homer/assets:/www/assets
+      - ./services/homer/entrypoint.sh:/replace-urls.sh
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.homer.rule=Host(`homer.${TRAEFIK_HOST}`)"
@@ -105,6 +172,9 @@ services:
     container_name: rdtclient
     hostname: rdtclient
     restart: unless-stopped
+    depends_on:
+      rclone:
+        condition: service_healthy
     networks:
       - traefik
     ports:
@@ -114,7 +184,7 @@ services:
     volumes:
       - ${APP_BASE_DIR}/data/rdtclient/db:/data/db
       - ${APP_BASE_DIR}/data/rdtclient/downloads:/downloads
-      - ${APP_BASE_DIR}/mnt/webdav:${APP_BASE_DIR}/mnt/webdav
+      - ${APP_BASE_DIR}/mnt/webdav:/mnt/webdav
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6500"]
       interval: 30s
@@ -135,6 +205,8 @@ services:
         condition: service_healthy
       rdtclient:
         condition: service_healthy
+      rclone:
+        condition: service_healthy
     networks:
       - traefik
     ports:
@@ -144,7 +216,6 @@ services:
     volumes:
       - ${APP_BASE_DIR}/data/radarr/config:/config
       - ${APP_BASE_DIR}/data/rdtclient/downloads:/downloads
-      - ${APP_BASE_DIR}/mnt/webdav:${APP_BASE_DIR}/mnt/webdav
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7878"]
       interval: 30s
@@ -160,13 +231,15 @@ services:
     container_name: sonarr
     hostname: sonarr
     restart: unless-stopped
-    networks:
-      - traefik
     depends_on:
       prowlarr:
         condition: service_healthy
       rdtclient:
         condition: service_healthy
+      rclone:
+        condition: service_healthy
+    networks:
+      - traefik
     ports:
       - 8989:8989
     env_file:
@@ -174,7 +247,6 @@ services:
     volumes:
       - ${APP_BASE_DIR}/data/sonarr/config:/config
       - ${APP_BASE_DIR}/data/rdtclient/downloads:/downloads
-      - ${APP_BASE_DIR}/mnt/webdav:${APP_BASE_DIR}/mnt/webdav
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8989"]
       interval: 30s
