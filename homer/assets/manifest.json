@@ -1,7 +1,7 @@
 {
-  "name": "Plex Servarr",
-  "short_name": "PlexServ",
-  "description": "Plex Servarr WebDAV",
+  "name": "Jellyfin Servarr",
+  "short_name": "JellyServ",
+  "description": "Jellyfin Servarr WebDAV",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

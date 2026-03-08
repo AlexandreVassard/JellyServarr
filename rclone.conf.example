@@ -2,7 +2,7 @@
 #               WebDAV Remote Configuration               #
 ###########################################################
 
-[plex-webdav]
+[jellyfin-webdav]
 
 # Type of the remote connection.
 # You don't want to change this except if you know what you are doing.

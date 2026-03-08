@@ -1,0 +1,18 @@
+[Unit]
+Description=Jellyfin WebDAV Mount Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/jellyfin-webdav/.env.default
+EnvironmentFile=-/etc/jellyfin-webdav/.env
+ExecStartPre=/bin/mkdir -p /mnt/jellyfin-webdav
+ExecStart=/usr/local/bin/jellyfin-webdav.sh
+ExecStop=/bin/fusermount -u /mnt/jellyfin-webdav
+Restart=always
+RestartSec=5
+SyslogIdentifier=jellyfin-webdav
+
+[Install]
+WantedBy=multi-user.target

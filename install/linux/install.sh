@@ -19,14 +19,14 @@ fi
 
 say "Checking configuration files..."
 
-if [ ! -d "/etc/plex-webdav" ]; then
-    say "Creating Plex WebDAV configuration folder..."
-    mkdir -p "$ENV_DIR/plex-webdav"
+if [ ! -d "/etc/jellyfin-webdav" ]; then
+    say "Creating Jellyfin WebDAV configuration folder..."
+    mkdir -p "$ENV_DIR/jellyfin-webdav"
 else
-    say "Plex WebDAV configuration folder exists, don't need to create it."
+    say "Jellyfin WebDAV configuration folder exists, don't need to create it."
 fi
 
-RCLONE_CONF_FILE="$ENV_DIR/plex-webdav/rclone.conf"
+RCLONE_CONF_FILE="$ENV_DIR/jellyfin-webdav/rclone.conf"
 if [ ! -f "$RCLONE_CONF_FILE" ]; then
     say "No rclone configuration file found ($RCLONE_CONF_FILE)"
     say "Please create this file from the example: "
@@ -38,33 +38,33 @@ else
 fi
 
 say "Copying default environment file..."
-cp "${REPOSITORY_DIR}/.env.example" "$ENV_DIR/plex-webdav/.env.default"
+cp "${REPOSITORY_DIR}/.jellyfin-webdav.env.example" "$ENV_DIR/jellyfin-webdav/.env.default"
 
-PLEX_WEBDAV_ENV_FILE="$ENV_DIR/plex-webdav/.env"
-if [ ! -f "$PLEX_WEBDAV_ENV_FILE" ]; then
-    say "WARNING : No environment file found ($PLEX_WEBDAV_ENV_FILE)."
-    say "Default values in \"$ENV_DIR/plex-webdav/.env.default\" will be used."
+JELLYFIN_WEBDAV_ENV_FILE="$ENV_DIR/jellyfin-webdav/.env"
+if [ ! -f "$JELLYFIN_WEBDAV_ENV_FILE" ]; then
+    say "WARNING : No environment file found ($JELLYFIN_WEBDAV_ENV_FILE)."
+    say "Default values in \"$ENV_DIR/jellyfin-webdav/.env.default\" will be used."
 else
-    say "\"$PLEX_WEBDAV_ENV_FILE\" found."
-    say "Default values in \"$ENV_DIR/plex-webdav/.env.default\" will be overriden by \"$PLEX_WEBDAV_ENV_FILE\"."
+    say "\"$JELLYFIN_WEBDAV_ENV_FILE\" found."
+    say "Default values in \"$ENV_DIR/jellyfin-webdav/.env.default\" will be overriden by \"$JELLYFIN_WEBDAV_ENV_FILE\"."
 fi
 
 say "Installing WebDAV services..."
 
 say "Copying systemd service file..."
-cp "${WORKING_DIR}/services/plex-webdav.service" "$SERVICE_DIR/"
+cp "${WORKING_DIR}/services/jellyfin-webdav.service" "$SERVICE_DIR/"
 
-say "Copying plex-webdav.sh script..."
-cp "${WORKING_DIR}/scripts/plex-webdav.sh" "$BIN_DIR/"
-chmod +x "$BIN_DIR/plex-webdav.sh"
+say "Copying jellyfin-webdav.sh script..."
+cp "${WORKING_DIR}/scripts/jellyfin-webdav.sh" "$BIN_DIR/"
+chmod +x "$BIN_DIR/jellyfin-webdav.sh"
 
 say "Reloading systemd daemon..."
 systemctl daemon-reload
 
 say "Enabling service..."
-systemctl enable plex-webdav.service
+systemctl enable jellyfin-webdav.service
 
 say "Starting service..."
-systemctl restart plex-webdav.service
+systemctl restart jellyfin-webdav.service
 
 say "Installation complete."

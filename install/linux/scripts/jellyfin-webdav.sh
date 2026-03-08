@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-PLEX_ENABLE_SCAN="${PLEX_ENABLE_SCAN:-true}"
-PLEX_SCAN_DELAY="${PLEX_SCAN_DELAY:-10}"
-PLEX_URL="${PLEX_URL:-http://localhost:32400}"
-PLEX_TOKEN="${PLEX_TOKEN:-}"
+JELLYFIN_ENABLE_SCAN="${JELLYFIN_ENABLE_SCAN:-true}"
+JELLYFIN_SCAN_DELAY="${JELLYFIN_SCAN_DELAY:-10}"
+JELLYFIN_URL="${JELLYFIN_URL:-http://localhost:8096}"
+JELLYFIN_TOKEN="${JELLYFIN_TOKEN:-}"
 
 WEBDAV_PATH="${WEBDAV_PATH:-}"
 WEBDAV_REFRESH_INTERVAL="${WEBDAV_REFRESH_INTERVAL:-60}"
@@ -23,8 +23,8 @@ say() {
     echo >&2 "$(date '+%Y-%m-%d %H:%M:%S') >> $*"
 }
 
-say "Mounting Plex WebDAV..."
-rclone mount plex-webdav:"${WEBDAV_PATH}" /mnt/plex-webdav \
+say "Mounting Jellyfin WebDAV..."
+rclone mount jellyfin-webdav:"${WEBDAV_PATH}" /mnt/jellyfin-webdav \
     --dir-cache-time "${WEBDAV_REFRESH_INTERVAL}s" \
     --vfs-cache-mode "${WEBDAV_VFS_CACHE_MODE}" \
     --vfs-cache-max-size "${WEBDAV_VFS_CACHE_MAX_SIZE}" \
@@ -37,7 +37,7 @@ rclone mount plex-webdav:"${WEBDAV_PATH}" /mnt/plex-webdav \
     --network-mode \
     --allow-other \
     --rc \
-    --config /etc/plex-webdav/rclone.conf &
+    --config /etc/jellyfin-webdav/rclone.conf &
 
 WEBDAV_MOUNT_PID=$!
 
@@ -47,34 +47,26 @@ say "Starting refresh loop..."
 
 while kill -0 $WEBDAV_MOUNT_PID 2>/dev/null; do
     say "Refreshing WebDAV cache..."
-    rclone rc vfs/refresh recursive=true || say "Plex WebDAV refresh failed"
+    rclone rc vfs/refresh recursive=true || say "Jellyfin WebDAV refresh failed"
 
-    if [ "$PLEX_ENABLE_SCAN" = true ]; then
-        if [ -z "$PLEX_TOKEN" ]; then
-            say "Plex scan is enabled but no PLEX_TOKEN provided. Skipping Plex scan."
+    if [ "$JELLYFIN_ENABLE_SCAN" = true ]; then
+        if [ -z "$JELLYFIN_TOKEN" ]; then
+            say "Jellyfin scan is enabled but no JELLYFIN_TOKEN provided. Skipping Jellyfin scan."
         else
-            say "Waiting ${PLEX_SCAN_DELAY}s before Plex scans..."
-            sleep "${PLEX_SCAN_DELAY}"
+            say "Waiting ${JELLYFIN_SCAN_DELAY}s before Jellyfin scan..."
+            sleep "${JELLYFIN_SCAN_DELAY}"
 
-            LIBRARY_IDS=$(curl -s "${PLEX_URL}/library/sections?X-Plex-Token=${PLEX_TOKEN}" | grep -oP 'key="\K[0-9]+')
-
-            if [ -z "$LIBRARY_IDS" ]; then
-                say "No Plex libraries found. Skipping..."
-            else
-                for LIB_ID in $LIBRARY_IDS; do
-                    say "Triggering Plex library scan for section ID: ${LIB_ID}..."
-                    curl -X POST "${PLEX_URL}/library/sections/${LIB_ID}/refresh" \
-                        --header "X-Plex-Token: ${PLEX_TOKEN}" \
-                        --silent --show-error ||
-                        say "Failed to trigger Plex library scan for section ID: ${LIB_ID}"
-                done
-            fi
+            say "Triggering Jellyfin library scan..."
+            curl -X POST "${JELLYFIN_URL}/Library/Refresh" \
+                --header "X-Emby-Token: ${JELLYFIN_TOKEN}" \
+                --silent --show-error ||
+                say "Failed to trigger Jellyfin library scan"
         fi
     else
-        say "Plex scan is disabled. Skipping..."
+        say "Jellyfin scan is disabled. Skipping..."
     fi
 
-    say "Waiting ${WEBDAV_REFRESH_INTERVAL}s before next Plex WebDAV refresh..."
+    say "Waiting ${WEBDAV_REFRESH_INTERVAL}s before next Jellyfin WebDAV refresh..."
     sleep "${WEBDAV_REFRESH_INTERVAL}"
 done
 

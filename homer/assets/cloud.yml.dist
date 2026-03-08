@@ -10,17 +10,17 @@ services:
   - name: "Applications"
     icon: "fa-solid fa-film"
     items:
-      - name: Plex
-        logo: "assets/tools/plex.png"
+      - name: Jellyfin
+        logo: "assets/tools/jellyfin.png"
         subtitle: "Stream your personal media collection"
-        url: "https://plex.domain.tld/web"
+        url: "https://jellyfin.domain.tld/web"
       - name: "Jellyseerr"
         logo: "assets/tools/jellyseerr.png"
-        subtitle: "Request platform for Plex media"
+        subtitle: "Request platform for Jellyfin media"
         url: "https://jellyseerr.domain.tld"
       - name: "Tautulli"
         logo: "assets/tools/tautulli.png"
-        subtitle: "Monitor Plex server activity and user statistics"
+        subtitle: "Monitor server activity and user statistics"
         url: "https://tautulli.domain.tld"
   - name: "Technical"
     icon: "fa-solid fa-helmet-safety"

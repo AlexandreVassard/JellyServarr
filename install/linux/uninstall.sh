@@ -7,7 +7,7 @@ ENV_DIR="${ENV_DIR:-/etc}"
 SERVICE_FILE="${SERVICE_DIR}/${SERVICE_NAME}.service"
 BIN_FILE="${BIN_DIR}/${SERVICE_NAME}.sh"
 CONFIG_DIR="${ENV_DIR}/${SERVICE_NAME}"
-SERVICE_NAME="plex-webdav"
+SERVICE_NAME="jellyfin-webdav"
 
 say() {
     echo >&2 "$(date '+%Y-%m-%d %H:%M:%S') >> $*"
