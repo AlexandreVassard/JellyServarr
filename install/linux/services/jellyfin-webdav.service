@@ -5,12 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-EnvironmentFile=/etc/jellyfin-webdav/.env.default
-EnvironmentFile=-/etc/jellyfin-webdav/.env
-ExecStartPre=-/bin/fusermount -uz /mnt/jellyfin-webdav
-ExecStartPre=/bin/mkdir -p /mnt/jellyfin-webdav
-ExecStart=/usr/local/bin/jellyfin-webdav.sh
-ExecStop=/bin/fusermount -u /mnt/jellyfin-webdav
+EnvironmentFile=@@APP_BASE_DIR@@/config/.env.default
+EnvironmentFile=-@@APP_BASE_DIR@@/config/.env
+ExecStartPre=-/bin/fusermount -uz @@APP_BASE_DIR@@/mnt/webdav
+ExecStartPre=/bin/mkdir -p @@APP_BASE_DIR@@/mnt/webdav
+ExecStart=@@APP_BASE_DIR@@/bin/jellyfin-webdav.sh
+ExecStop=/bin/fusermount -u @@APP_BASE_DIR@@/mnt/webdav
 Restart=always
 RestartSec=5
 SyslogIdentifier=jellyfin-webdav

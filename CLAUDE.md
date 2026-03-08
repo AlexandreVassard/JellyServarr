@@ -9,22 +9,22 @@ A Docker Compose stack for self-hosting Jellyfin with satellite services (Radarr
 ## Stack Overview
 
 - **Traefik**: Reverse proxy with Let's Encrypt TLS. All services get `<service>.${TRAEFIK_HOST}` routes.
-- **Jellyfin**: Media server. Accesses WebDAV mount at `/mnt/jellyfin-webdav`.
+- **Jellyfin**: Media server. Accesses WebDAV mount at `${APP_BASE_DIR}/mnt/webdav`.
 - **Radarr / Sonarr**: Automated movie/TV downloaders. Depend on Prowlarr and RDTClient being healthy.
 - **Prowlarr**: Indexer manager. Custom indexer definitions in `prowlarr/definitions/` are copied into the container on first run (not overwritten if already present).
-- **RDTClient**: Download client (Real-Debrid / AllDebrid torrents). Downloads land in `./data/rdtclient/downloads`, shared as `/downloads` with Radarr/Sonarr.
+- **RDTClient**: Download client (Real-Debrid / AllDebrid torrents). Downloads land in `${APP_BASE_DIR}/data/rdtclient/downloads`, shared as `/downloads` with Radarr/Sonarr.
 - **Jellyseerr**: Media request platform. Depends on Radarr and Sonarr being healthy.
 - **Tautulli**: Activity monitor. Depends on Jellyfin being healthy.
 - **Homer**: Dashboard. Has two views: local (`config.yml`) and cloud (`cloud.yml`). Both are generated from `.dist` templates at container start using `TRAEFIK_HOST` and `HOMER_LOCAL_IP` env vars.
-- **jellyfin-webdav** (systemd): Runs on the host (not in Docker). Uses rclone to mount the WebDAV remote at `/mnt/jellyfin-webdav`, then loops: refreshes the VFS cache and triggers Jellyfin library scans.
+- **jellyfin-webdav** (systemd): Runs on the host (not in Docker). Uses rclone to mount the WebDAV remote at `${APP_BASE_DIR}/mnt/webdav`, then loops: refreshes the VFS cache and triggers Jellyfin library scans.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `.env` | Docker Compose environment (copy from `.env.example`) |
-| `rclone.conf` | At `/etc/jellyfin-webdav/rclone.conf` on the host (copy from `rclone.conf.example`) |
-| `/etc/jellyfin-webdav/.env` | Host-side overrides for jellyfin-webdav service (copy from `.jellyfin-webdav.env.example`) |
+| `rclone.conf` | At `${APP_BASE_DIR}/config/rclone.conf` on the host (copy from `rclone.conf.example`) |
+| `${APP_BASE_DIR}/config/.env` | Host-side overrides for jellyfin-webdav service (copy from `.jellyfin-webdav.env.example`) |
 | `homer/assets/config.yml.dist` | Local dashboard template |
 | `homer/assets/cloud.yml.dist` | Cloud dashboard template |
 | `prowlarr/definitions/ygg-api.yml` | Custom Prowlarr indexer definition for YGG |
@@ -38,12 +38,12 @@ A Docker Compose stack for self-hosting Jellyfin with satellite services (Radarr
 cp .env.example .env
 
 # 2. Configure rclone WebDAV (obscure password first)
-sudo mkdir -p /etc/jellyfin-webdav
-sudo cp rclone.conf.example /etc/jellyfin-webdav/rclone.conf
+sudo mkdir -p /opt/jellyfin-servarr/config
+sudo cp rclone.conf.example /opt/jellyfin-servarr/config/rclone.conf
 # Obscure password: docker run --rm rclone/rclone:latest obscure 'your_password'
 
 # 3. (Optional) Override jellyfin-webdav service defaults
-sudo cp .jellyfin-webdav.env.example /etc/jellyfin-webdav/.env
+sudo cp .jellyfin-webdav.env.example /opt/jellyfin-servarr/config/.env
 
 # 4. Install systemd service (requires rclone on host)
 sudo bash install/linux/install.sh
@@ -75,8 +75,8 @@ sudo bash install/linux/uninstall.sh
 
 ## Architecture Notes
 
-- The WebDAV mount (`/mnt/jellyfin-webdav`) is shared between the host (via systemd) and Docker containers (Jellyfin, Radarr, Sonarr, RDTClient) via a bind mount. The host must mount it before Docker containers start.
-- The `jellyfin-webdav` systemd service loads `/etc/jellyfin-webdav/.env.default` first, then `/etc/jellyfin-webdav/.env` as an override (the `-` prefix in the unit file makes the override optional).
+- The WebDAV mount (`${APP_BASE_DIR}/mnt/webdav`) is shared between the host (via systemd) and Docker containers (Jellyfin, Radarr, Sonarr, RDTClient) via a bind mount. The host must mount it before Docker containers start.
+- The `jellyfin-webdav` systemd service loads `${APP_BASE_DIR}/config/.env.default` first, then `${APP_BASE_DIR}/config/.env` as an override (the `-` prefix in the unit file makes the override optional). `APP_BASE_DIR` is substituted at install time (default: `/opt/jellyfin-servarr`).
 - Homer's entrypoint generates `config.yml` and `cloud.yml` from `.dist` templates each time the container starts — do not edit the non-`.dist` files directly.
 - Prowlarr's entrypoint only copies custom definitions if they don't already exist in `/config/Definitions/Custom/`.
 - The Jellyfin library scan API is `POST /Library/Refresh` with header `X-Emby-Token: <token>`, which triggers a full library scan.

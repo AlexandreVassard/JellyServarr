@@ -1,13 +1,14 @@
 #!/bin/bash
 set -e
 
+APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyfin-servarr}"
 SERVICE_DIR="${SERVICE_DIR:-/etc/systemd/system}"
-BIN_DIR="${BIN_DIR:-/usr/local/bin}"
-ENV_DIR="${ENV_DIR:-/etc}"
+SERVICE_NAME="jellyfin-webdav"
+BIN_DIR="${BIN_DIR:-${APP_BASE_DIR}/bin}"
+ENV_DIR="${ENV_DIR:-${APP_BASE_DIR}/config}"
 SERVICE_FILE="${SERVICE_DIR}/${SERVICE_NAME}.service"
 BIN_FILE="${BIN_DIR}/${SERVICE_NAME}.sh"
-CONFIG_DIR="${ENV_DIR}/${SERVICE_NAME}"
-SERVICE_NAME="jellyfin-webdav"
+CONFIG_DIR="${ENV_DIR}"
 
 say() {
     echo >&2 "$(date '+%Y-%m-%d %H:%M:%S') >> $*"

@@ -1,9 +1,10 @@
 #!/bin/bash
 set -e
 
+APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyfin-servarr}"
 SERVICE_DIR="${SERVICE_DIR:-/etc/systemd/system}"
-BIN_DIR="${BIN_DIR:-/usr/local/bin}"
-ENV_DIR="${ENV_DIR:-/etc}"
+BIN_DIR="${BIN_DIR:-${APP_BASE_DIR}/bin}"
+ENV_DIR="${ENV_DIR:-${APP_BASE_DIR}/config}"
 WORKING_DIR="${WORKING_DIR:-$(readlink -f "$(dirname "$0")")}"
 REPOSITORY_DIR="${REPOSITORY_DIR:-$(readlink -f "$WORKING_DIR/../..")}"
 
@@ -19,14 +20,14 @@ fi
 
 say "Checking configuration files..."
 
-if [ ! -d "/etc/jellyfin-webdav" ]; then
+if [ ! -d "${APP_BASE_DIR}/config" ]; then
     say "Creating Jellyfin WebDAV configuration folder..."
-    mkdir -p "$ENV_DIR/jellyfin-webdav"
+    mkdir -p "$ENV_DIR"
 else
     say "Jellyfin WebDAV configuration folder exists, don't need to create it."
 fi
 
-RCLONE_CONF_FILE="$ENV_DIR/jellyfin-webdav/rclone.conf"
+RCLONE_CONF_FILE="$ENV_DIR/rclone.conf"
 if [ ! -f "$RCLONE_CONF_FILE" ]; then
     say "No rclone configuration file found ($RCLONE_CONF_FILE)"
     say "Please create this file from the example: "
@@ -38,21 +39,39 @@ else
 fi
 
 say "Copying default environment file..."
-cp "${REPOSITORY_DIR}/.jellyfin-webdav.env.example" "$ENV_DIR/jellyfin-webdav/.env.default"
+cp "${REPOSITORY_DIR}/.jellyfin-webdav.env.example" "$ENV_DIR/.env.default"
 
-JELLYFIN_WEBDAV_ENV_FILE="$ENV_DIR/jellyfin-webdav/.env"
+JELLYFIN_WEBDAV_ENV_FILE="$ENV_DIR/.env"
 if [ ! -f "$JELLYFIN_WEBDAV_ENV_FILE" ]; then
     say "WARNING : No environment file found ($JELLYFIN_WEBDAV_ENV_FILE)."
-    say "Default values in \"$ENV_DIR/jellyfin-webdav/.env.default\" will be used."
+    say "Default values in \"$ENV_DIR/.env.default\" will be used."
 else
     say "\"$JELLYFIN_WEBDAV_ENV_FILE\" found."
-    say "Default values in \"$ENV_DIR/jellyfin-webdav/.env.default\" will be overriden by \"$JELLYFIN_WEBDAV_ENV_FILE\"."
+    say "Default values in \"$ENV_DIR/.env.default\" will be overriden by \"$JELLYFIN_WEBDAV_ENV_FILE\"."
 fi
+
+say "Creating mount and data directories..."
+mkdir -p \
+    "${APP_BASE_DIR}/mnt/webdav" \
+    "${APP_BASE_DIR}/mnt/movies" \
+    "${APP_BASE_DIR}/mnt/series" \
+    "${APP_BASE_DIR}/data/traefik/letsencrypt" \
+    "${APP_BASE_DIR}/data/jellyfin/config" \
+    "${APP_BASE_DIR}/data/prowlarr/config" \
+    "${APP_BASE_DIR}/data/radarr/config" \
+    "${APP_BASE_DIR}/data/sonarr/config" \
+    "${APP_BASE_DIR}/data/jellyseerr/config" \
+    "${APP_BASE_DIR}/data/tautulli/config" \
+    "${APP_BASE_DIR}/data/rdtclient/db" \
+    "${APP_BASE_DIR}/data/rdtclient/downloads"
 
 say "Installing WebDAV services..."
 
 say "Copying systemd service file..."
-cp "${WORKING_DIR}/services/jellyfin-webdav.service" "$SERVICE_DIR/"
+mkdir -p "$BIN_DIR"
+sed "s|@@APP_BASE_DIR@@|${APP_BASE_DIR}|g" \
+    "${WORKING_DIR}/services/jellyfin-webdav.service" \
+    > "$SERVICE_DIR/jellyfin-webdav.service"
 
 say "Copying jellyfin-webdav.sh script..."
 cp "${WORKING_DIR}/scripts/jellyfin-webdav.sh" "$BIN_DIR/"

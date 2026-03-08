@@ -17,7 +17,7 @@ url = https://your_webdav_server_url
 vendor = other
 
 # Your WebDAV username or login.
-user = you_username
+user = your_username
 
 # Your WebDAV password.
 # It needs to be obscured by rclone :
