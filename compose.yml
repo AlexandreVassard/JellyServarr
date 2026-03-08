@@ -92,7 +92,7 @@ services:
       - ./services/media-sync/media-sync.sh:/media-sync.sh:ro
       - ${APP_BASE_DIR}/mnt/webdav:/mnt/webdav:ro
       - ${APP_BASE_DIR}/mnt/medias:/mnt/medias
-    command: ["/bin/bash", "/media-sync.sh"]
+    command: ["/usr/local/bin/bash", "/media-sync.sh"]
     networks:
       - traefik
   jellyfin:

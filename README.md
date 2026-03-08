@@ -30,20 +30,20 @@ A self-hosted media stack powered by Docker Compose. It mounts a remote WebDAV s
 
 ## Installation
 
-### 1. Clone the repository
+### 1. Download and bootstrap
+
+Run this on your server to clone the repository and generate config files:
 
 ```shell
-git clone https://github.com/AlexandreVassard/JellyServarr.git
-cd jellyservarr
+curl -fsSL https://raw.githubusercontent.com/AlexandreVassard/JellyServarr/main/scripts/bootstrap.sh | sudo bash
 ```
+
+This clones the repo to `/opt/jellyservarr` and creates pre-filled config files ready to edit.
 
 ### 2. Configure the environment
 
-Copy the example file and open it in your editor:
-
 ```shell
-cp .env.example .env
-nano .env
+sudo nano /opt/jellyservarr/.env
 ```
 
 At minimum, set these values:
@@ -62,11 +62,7 @@ At minimum, set these values:
 
 ### 3. Configure the rclone WebDAV remote
 
-Copy the example config to its expected location and edit it:
-
 ```shell
-sudo mkdir -p /opt/jellyservarr/config
-sudo cp rclone.conf.example /opt/jellyservarr/config/rclone.conf
 sudo nano /opt/jellyservarr/config/rclone.conf
 ```
 
@@ -81,7 +77,7 @@ Then paste the output into the `pass =` field in `rclone.conf`.
 ### 4. Run the install script
 
 ```shell
-sudo bash scripts/install.sh
+sudo bash /opt/jellyservarr/scripts/install.sh
 ```
 
 This script handles all low-level setup automatically:
@@ -120,6 +116,8 @@ The `media-sync` sidecar needs a Jellyfin API key to trigger library scans. Sinc
 ## Runtime commands
 
 ```shell
+cd /opt/jellyservarr
+
 # Start or stop the entire stack
 docker compose up -d
 docker compose down

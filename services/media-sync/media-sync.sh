@@ -215,7 +215,7 @@ sync_symlinks || say "Symlink sync failed"
 
 say "Starting refresh loop..."
 
-while wget -q -O /dev/null "http://rclone:5572/vfs/stats" 2>/dev/null; do
+while wget -q -O /dev/null --post-data="" "http://rclone:5572/vfs/stats" 2>/dev/null; do
     say "Refreshing WebDAV cache..."
     wget -q -O /dev/null --post-data "recursive=true" "http://rclone:5572/vfs/refresh" \
         2>&1 || say "Jellyfin WebDAV refresh failed"
