@@ -67,6 +67,8 @@ sudo bash scripts/uninstall.sh
 - **Shared bind mount**: `install.sh` creates a `bind,shared` entry in `/etc/fstab` so the mount point survives reboots with the correct propagation mode. Without this, rclone's FUSE mount stays container-local after reboot.
 - **`--allow-other`**: Required so containers running as PUID/PGID can read the mount. Enabled via `user_allow_other` in `/etc/fuse.conf` (added by `install.sh`).
 - **`--rc-no-auth`**: RC authentication is disabled. Port 5572 is never exposed to the host (no `ports:` entry), so this is safe within the Docker network.
+- **Published ports**: only Traefik (80/443) and Jellyfin (8096 for LAN clients, 7359/udp for auto-discovery) are published. Everything else is reached over HTTPS through Traefik. The Traefik dashboard is off — `--api.insecure` serves it unauthenticated, so re-enabling it means putting it behind a router with basic-auth.
+- **`environment:` over `env_file:`**: each service declares only the variables it needs. Only media-sync uses `env_file: .env`, since it reads most of the file.
 - **Restart resilience**: If the rclone container restarts, the media-sync sidecar detects RC unreachable (loop condition fails), exits with code 1, and Docker restarts it. `depends_on` only applies at initial startup — this is the correct behavior.
 - **rclone remote name**: `jellyfin-webdav` (as configured in `rclone.conf`).
 - **Symlink libraries**: `media-sync.sh` classifies each entry at the WebDAV root as a movie or a series and links it into `mnt/medias/movies` or `mnt/medias/series/<Show>/Season N/`. Jellyfin's libraries point at those folders, not at the raw mount.

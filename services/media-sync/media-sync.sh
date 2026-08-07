@@ -1,16 +1,17 @@
 #!/bin/bash
 set -e
 
-APP_BASE_DIR="${APP_BASE_DIR:-/opt/jellyservarr}"
-
 JELLYFIN_ENABLE_SCAN="${JELLYFIN_ENABLE_SCAN:-true}"
 JELLYFIN_SCAN_DELAY="${JELLYFIN_SCAN_DELAY:-10}"
 JELLYFIN_URL="${JELLYFIN_URL:-http://jellyfin:8096}"
 JELLYFIN_TOKEN="${JELLYFIN_TOKEN:-}"
 
-MOVIES_DIR="${MOVIES_DIR:-/mnt/medias/movies}"
-SERIES_DIR="${SERIES_DIR:-/mnt/medias/series}"
-WEBDAV_MOUNT_DIR="${WEBDAV_MOUNT_DIR:-/mnt/webdav}"
+# Container-side paths, fixed by the volumes declared for this service in
+# compose.yml. They are constants, not settings: changing one here without
+# changing the matching volume silently breaks the sync.
+WEBDAV_MOUNT_DIR=/mnt/webdav
+MOVIES_DIR=/mnt/medias/movies
+SERIES_DIR=/mnt/medias/series
 
 WEBDAV_REFRESH_INTERVAL="${WEBDAV_REFRESH_INTERVAL:-60}"
 WEBDAV_REFRESH_INITIAL_DELAY="${WEBDAV_REFRESH_INITIAL_DELAY:-15}"

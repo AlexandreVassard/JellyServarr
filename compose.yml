@@ -1,4 +1,4 @@
-name: jellyfin_servarr_webdav
+name: jellyservarr
 
 services:
   traefik:
@@ -9,8 +9,7 @@ services:
     networks:
       - traefik
     command:
-      - "--log.level=DEBUG"
-      - "--api.insecure=true"
+      - "--log.level=INFO"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
@@ -26,7 +25,6 @@ services:
     ports:
       - 80:80
       - 443:443
-      - 8080:8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${APP_BASE_DIR}/data/traefik/letsencrypt:/letsencrypt
@@ -41,8 +39,8 @@ services:
       - /dev/fuse:/dev/fuse
     security_opt:
       - apparmor:unconfined
-    env_file:
-      - .env
+    environment:
+      - TZ=${TZ}
     volumes:
       - ${APP_BASE_DIR}/config/rclone.conf:/config/rclone/rclone.conf:ro
       - ${APP_BASE_DIR}/data/rclone/cache:/cache
@@ -106,11 +104,14 @@ services:
     networks:
       - traefik
     ports:
+      # 8096 for LAN clients reaching Jellyfin directly, 7359/udp for
+      # client auto-discovery. Everything else goes through Traefik.
       - 8096:8096
-      - 8920:8920
       - 7359:7359/udp
-    env_file:
-      - .env
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
     volumes:
       - ${APP_BASE_DIR}/data/jellyfin/config:/config
       - ${APP_BASE_DIR}/mnt/webdav:/mnt/webdav
@@ -135,10 +136,8 @@ services:
     depends_on:
       jellyfin:
         condition: service_healthy
-    ports:
-      - 5055:5055
-    env_file:
-      - .env
+    environment:
+      - TZ=${TZ}
     volumes:
       - ${APP_BASE_DIR}/data/jellyseerr/config:/app/config
     healthcheck:

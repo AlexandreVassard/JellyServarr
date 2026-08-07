@@ -8,7 +8,7 @@ A self-hosted media stack powered by Docker Compose. It mounts a remote WebDAV s
 |---|---|---|
 | **Jellyfin** | Media server | `jellyfin.yourdomain.tld` |
 | **Jellyseerr** | Media request platform | `jellyseerr.yourdomain.tld` |
-| **Traefik** | Reverse proxy + TLS | `:8080` (dashboard) |
+| **Traefik** | Reverse proxy + TLS | `:80`, `:443` |
 | **rclone** | WebDAV mount | internal |
 | **media-sync** | Sync sidecar | internal |
 
@@ -86,22 +86,48 @@ Once it completes, all services are running and will **restart automatically on 
 
 ## Post-install setup
 
-### Generate a Jellyfin API key
+Configure the two services through their web UI, in this order.
 
-The `media-sync` sidecar needs a Jellyfin API key to trigger library scans. Since Jellyfin needs to be running to generate one, do this after the first start:
+### 1. Jellyfin
 
-1. Open Jellyfin in your browser: `https://jellyfin.yourdomain.tld`
-2. Complete the initial setup wizard
-3. Go to **Administration → API Keys → +**
-4. Copy the generated token
-5. Paste it into `.env`:
-   ```
-   JELLYFIN_TOKEN=your_token_here
-   ```
-6. Restart the sidecar:
-   ```shell
-   docker compose restart media-sync
-   ```
+Open `https://jellyfin.yourdomain.tld` and complete the setup wizard, then:
+
+**Add the libraries** — *Dashboard → Libraries → Add Media Library*
+
+| Content type | Folder |
+|---|---|
+| `Movies` | `/medias/movies` |
+| `Shows` | `/medias/series` |
+
+Both folders are filled with symlinks by the `media-sync` sidecar. Do not point a library at
+`/mnt/webdav` directly — the raw remote has no Jellyfin-compatible naming scheme.
+
+**Generate an API key** — *Dashboard → API Keys → +*
+
+The sidecar needs it to trigger library scans. Paste it into `.env`, then restart the sidecar:
+
+```shell
+JELLYFIN_TOKEN=your_token_here
+```
+
+```shell
+docker compose restart media-sync
+```
+
+### 2. Jellyseerr
+
+Open `https://jellyseerr.yourdomain.tld` and pick **Jellyfin** as the media server backend:
+
+| Field | Value |
+|---|---|
+| Jellyfin URL | `http://jellyfin:8096` |
+| Email / Username | *(your Jellyfin admin account)* |
+| Password | *(your Jellyfin admin password)* |
+
+Then select the libraries to sync.
+
+> **Note:** Jellyseerr has no download automation behind it in this stack. It works as a
+> catalog and a request tracker; approved requests must be fulfilled manually.
 
 ---
 
