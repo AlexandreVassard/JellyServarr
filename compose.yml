@@ -23,8 +23,11 @@ services:
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.caserver=${TLS_CERTIFICATE_SERVER:-https://acme-v02.api.letsencrypt.org/directory}"
     ports:
-      - 80:80
-      - 443:443
+      # Defaults to every interface. Set TRAEFIK_BIND_IP to a single host
+      # address when something else already holds 80/443 on another one
+      # (a Tailscale Funnel, for instance) — binding 0.0.0.0 then fails.
+      - ${TRAEFIK_BIND_IP:-0.0.0.0}:80:80
+      - ${TRAEFIK_BIND_IP:-0.0.0.0}:443:443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${APP_BASE_DIR}/data/traefik/letsencrypt:/letsencrypt

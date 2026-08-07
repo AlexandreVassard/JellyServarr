@@ -47,6 +47,12 @@ At minimum, set these values:
 | `PUID` / `PGID` | Your host user/group ID (avoids permission issues) | `1000` / `1000` |
 | `TZ` | Your timezone | `Europe/Paris` |
 | `WEBDAV_PATH` | Path inside your WebDAV remote (leave empty for root) | `media/` |
+| `TRAEFIK_BIND_IP` | Interface Traefik binds 80/443 to — see below | `0.0.0.0` |
+
+> **`TRAEFIK_BIND_IP`** only matters if another service already holds 80 or 443 on one of your
+> interfaces — a Tailscale Funnel, a VPN endpoint. The kernel then refuses Traefik's bind on
+> `0.0.0.0`, and Traefik exits at startup. Set it to a single host address (`192.168.1.41`) so
+> the two coexist.
 
 > **To find your PUID/PGID**, run `id` in your terminal.
 
