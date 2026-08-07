@@ -4,10 +4,7 @@ services:
   traefik:
     image: traefik:3.6
     container_name: traefik
-    hostname: traefik
     restart: unless-stopped
-    networks:
-      - traefik
     command:
       - "--log.level=INFO"
       - "--providers.docker=true"
@@ -34,7 +31,6 @@ services:
   rclone:
     image: rclone/rclone:latest
     container_name: rclone
-    hostname: rclone
     restart: unless-stopped
     cap_add:
       - SYS_ADMIN
@@ -57,14 +53,14 @@ services:
       /mnt/webdav
       --cache-dir /cache
       --dir-cache-time ${WEBDAV_REFRESH_INTERVAL:-60}s
-      --vfs-cache-mode ${WEBDAV_VFS_CACHE_MODE:-full}
       --vfs-cache-max-size ${WEBDAV_VFS_CACHE_MAX_SIZE:-10G}
-      --vfs-cache-max-age ${WEBDAV_VFS_CACHE_MAX_AGE:-1h}
-      --vfs-read-chunk-size ${WEBDAV_VFS_READ_CHUNK_SIZE:-32M}
-      --vfs-read-chunk-size-limit ${WEBDAV_VFS_READ_CHUNK_SIZE_LIMIT:-512M}
-      --buffer-size ${WEBDAV_BUFFER_SIZE:-8M}
-      --multi-thread-streams ${WEBDAV_MULTI_THREAD_STREAMS:-4}
-      --cutoff-mode=${WEBDAV_CUTOFF_MODE:-hard}
+      --vfs-cache-mode full
+      --vfs-cache-max-age 1h
+      --vfs-read-chunk-size 32M
+      --vfs-read-chunk-size-limit 512M
+      --buffer-size 8M
+      --multi-thread-streams 4
+      --cutoff-mode=hard
       --network-mode
       --allow-other
       --allow-non-empty
@@ -77,12 +73,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    networks:
-      - traefik
   media-sync:
     image: bash:alpine3.21
     container_name: media-sync
-    hostname: media-sync
     restart: unless-stopped
     depends_on:
       rclone:
@@ -94,18 +87,13 @@ services:
       - ${APP_BASE_DIR}/mnt/webdav:/mnt/webdav:ro
       - ${APP_BASE_DIR}/mnt/medias:/mnt/medias
     command: ["/usr/local/bin/bash", "/media-sync.sh"]
-    networks:
-      - traefik
   jellyfin:
     image: lscr.io/linuxserver/jellyfin:10.11.11
     container_name: jellyfin
-    hostname: jellyfin
     restart: unless-stopped
     depends_on:
       rclone:
         condition: service_healthy
-    networks:
-      - traefik
     ports:
       # 8096 for LAN clients reaching Jellyfin directly, 7359/udp for
       # client auto-discovery. Everything else goes through Traefik.
@@ -132,10 +120,7 @@ services:
   jellyseerr:
     image: fallenbagel/jellyseerr:2.5.2
     container_name: jellyseerr
-    hostname: jellyseerr
     restart: unless-stopped
-    networks:
-      - traefik
     depends_on:
       jellyfin:
         condition: service_healthy
@@ -153,7 +138,3 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.jellyseerr.rule=Host(`jellyseerr.${TRAEFIK_HOST}`)"
       - "traefik.http.services.jellyseerr.loadbalancer.server.port=5055"
-
-networks:
-  traefik:
-    name: traefik

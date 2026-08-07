@@ -12,7 +12,9 @@ A Docker Compose stack for self-hosting Jellyfin, backed by a WebDAV remote stor
 - **Jellyfin**: Media server. Reads the symlink libraries at `${APP_BASE_DIR}/mnt/medias` (mounted as `/medias`) and the raw WebDAV mount at `${APP_BASE_DIR}/mnt/webdav`.
 - **Jellyseerr**: Media request platform, backed by Jellyfin. Depends on Jellyfin being healthy. With no *arr services in the stack, it acts as a catalog / request tracker only — nothing fulfills requests automatically.
 - **rclone**: Docker service that mounts the WebDAV remote at `${APP_BASE_DIR}/mnt/webdav` via FUSE with rshared propagation. Exposes RC API on port 5572 (container-internal only).
-- **media-sync** (sidecar): Alpine container that runs `media-sync.sh`. Waits for rclone to be healthy, then loops: refreshes the VFS cache via rclone RC API, syncs symlinks, and triggers Jellyfin library scans.
+- **media-sync** (sidecar): Alpine container that runs `media-sync.sh`. Waits for rclone to be healthy, then loops: refreshes the VFS cache via rclone RC API, syncs symlinks, and asks Jellyfin for a scan when — and only when — the symlinks changed.
+
+All five services sit on the project's default Compose network, where the service name is the DNS alias (`http://jellyfin:8096`, `http://rclone:5572`).
 
 ## Key Files
 
@@ -72,4 +74,5 @@ sudo bash scripts/uninstall.sh
 - **Restart resilience**: If the rclone container restarts, the media-sync sidecar detects RC unreachable (loop condition fails), exits with code 1, and Docker restarts it. `depends_on` only applies at initial startup — this is the correct behavior.
 - **rclone remote name**: `jellyfin-webdav` (as configured in `rclone.conf`).
 - **Symlink libraries**: `media-sync.sh` classifies each entry at the WebDAV root as a movie or a series and links it into `mnt/medias/movies` or `mnt/medias/series/<Show>/Season N/`. Jellyfin's libraries point at those folders, not at the raw mount.
-- The Jellyfin library scan API is `POST /Library/Refresh` with header `X-Emby-Token: <token>`, which triggers a full library scan.
+- The Jellyfin library scan API is `POST /Library/Refresh` with header `X-Emby-Token: <token>`, which triggers a full library scan. That scan is expensive over the WebDAV mount, so `media-sync.sh` only fires it when a symlink was actually added or removed. `sync_symlinks` records that through the `/tmp/media-sync-changed` marker file — a plain variable would not survive the `while read` subshells. The marker is cleared only once Jellyfin accepts the request, so a failed scan is retried next cycle.
+- **Video extensions** live in the single `VIDEO_EXTENSIONS` array in `media-sync.sh`; the `find` expression and the filename regex are both derived from it.

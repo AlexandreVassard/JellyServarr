@@ -2,7 +2,6 @@
 set -e
 
 JELLYFIN_ENABLE_SCAN="${JELLYFIN_ENABLE_SCAN:-true}"
-JELLYFIN_SCAN_DELAY="${JELLYFIN_SCAN_DELAY:-10}"
 JELLYFIN_URL="${JELLYFIN_URL:-http://jellyfin:8096}"
 JELLYFIN_TOKEN="${JELLYFIN_TOKEN:-}"
 
@@ -20,12 +19,46 @@ say() {
     echo >&2 "$(date '+%Y-%m-%d %H:%M:%S') >> $*"
 }
 
+# The single list of recognised video extensions. Everything below derives
+# from it, so adding a format is a one-line change.
+VIDEO_EXTENSIONS=(mkv mp4 avi m4v ts)
+
+# find(1) expression matching any of them: ( -iname *.mkv -o -iname *.mp4 ... )
+VIDEO_FIND_EXPR=("(")
+for ext in "${VIDEO_EXTENSIONS[@]}"; do
+    [ "${#VIDEO_FIND_EXPR[@]}" -gt 1 ] && VIDEO_FIND_EXPR+=("-o")
+    VIDEO_FIND_EXPR+=(-iname "*.$ext")
+done
+VIDEO_FIND_EXPR+=(")")
+
+VIDEO_EXTENSION_RE="$(IFS='|'; echo "${VIDEO_EXTENSIONS[*]}")"
+
+# List video files under $1, at most $2 levels deep.
+find_videos() {
+    find "$1" -maxdepth "$2" -type f "${VIDEO_FIND_EXPR[@]}" 2>/dev/null
+}
+
 has_video_files() {
-    find "$1" -maxdepth 3 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" -o -iname "*.m4v" -o -iname "*.ts" \) -print -quit 2>/dev/null | grep -q .
+    [ -n "$(find_videos "$1" 3 | head -1)" ]
 }
 
 is_video_file() {
-    echo "$1" | grep -qiE "\.(mkv|mp4|avi|m4v|ts)$"
+    echo "$1" | grep -qiE "\.($VIDEO_EXTENSION_RE)$"
+}
+
+# sync_symlinks runs its loops inside pipelines, so a counter variable would
+# be lost with the subshell. A marker file survives instead, and tells the
+# main loop whether the library actually changed and a scan is warranted.
+CHANGES_MARKER=/tmp/media-sync-changed
+
+mark_changed() { : > "$CHANGES_MARKER"; }
+changes_pending() { [ -f "$CHANGES_MARKER" ]; }
+clear_changes() { rm -f "$CHANGES_MARKER"; }
+
+# Create a symlink and record the change. $1: target, $2: link path.
+link_video() {
+    [ -L "$2" ] && return 0
+    ln -s "$1" "$2" && mark_changed
 }
 
 # Matches a movie year in various formats:
@@ -43,7 +76,7 @@ classify_item() {
         # A folder with a year in its name is a series if it contains multiple video files
         if [ -d "$item" ]; then
             local count
-            count=$(find "$item" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" -o -iname "*.m4v" -o -iname "*.ts" \) 2>/dev/null | wc -l)
+            count=$(find_videos "$item" 1 | wc -l)
             [ "$count" -gt 1 ] && echo "series" || echo "movie"
         else
             echo "movie"
@@ -81,7 +114,15 @@ extract_season_number() {
     echo ""
 }
 
-VIDEO_FIND_ARGS="-maxdepth 2 -type f \( -iname *.mkv -o -iname *.mp4 -o -iname *.avi -o -iname *.m4v -o -iname *.ts \)"
+# Link every video found under $1 into $2/Season $3/.
+link_season_videos() {
+    local src="$1" show_dir="$2" season="$3" depth="${4:-2}"
+    local sdir="$show_dir/Season $season"
+    mkdir -p "$sdir"
+    find_videos "$src" "$depth" | while IFS= read -r video; do
+        link_video "$video" "$sdir/$(basename "$video")"
+    done
+}
 
 # Link all video files from $1 into $2/Season N/ directories.
 # $3: season number hint (from parent folder name); empty = detect from children/files.
@@ -91,14 +132,7 @@ link_series_videos() {
 
     if [ -n "$season" ]; then
         # Season known: all videos inside belong to this season
-        local sdir="$show_dir/Season $season"
-        mkdir -p "$sdir"
-        find "$src" -maxdepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" -o -iname "*.m4v" -o -iname "*.ts" \) 2>/dev/null \
-        | while IFS= read -r video; do
-            local vname
-            vname="$(basename "$video")"
-            [ -L "$sdir/$vname" ] || ln -s "$video" "$sdir/$vname"
-        done
+        link_season_videos "$src" "$show_dir" "$season"
         return
     fi
 
@@ -109,26 +143,17 @@ link_series_videos() {
         local c_season
         c_season="$(extract_season_number "$(basename "$child")")"
         [ -z "$c_season" ] && continue
-        local sdir="$show_dir/Season $c_season"
-        mkdir -p "$sdir"
-        find "$child" -maxdepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" -o -iname "*.m4v" -o -iname "*.ts" \) 2>/dev/null \
-        | while IFS= read -r video; do
-            local vname
-            vname="$(basename "$video")"
-            [ -L "$sdir/$vname" ] || ln -s "$video" "$sdir/$vname"
-        done
+        link_season_videos "$child" "$show_dir" "$c_season"
     done
 
     # Also handle video files placed directly inside the show folder (with S##E## in name)
-    find "$src" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" -o -iname "*.m4v" -o -iname "*.ts" \) 2>/dev/null \
-    | while IFS= read -r video; do
+    find_videos "$src" 1 | while IFS= read -r video; do
         local vname v_season
         vname="$(basename "$video")"
         v_season="$(extract_season_number "$vname")"
         [ -z "$v_season" ] && continue
-        local sdir="$show_dir/Season $v_season"
-        mkdir -p "$sdir"
-        [ -L "$sdir/$vname" ] || ln -s "$video" "$sdir/$vname"
+        mkdir -p "$show_dir/Season $v_season"
+        link_video "$video" "$show_dir/Season $v_season/$vname"
     done
 }
 
@@ -139,14 +164,14 @@ sync_symlinks() {
 
     # Movies: remove broken symlinks only
     find "$MOVIES_DIR" -maxdepth 1 -type l | while IFS= read -r link; do
-        [ -e "$link" ] || rm -f "$link"
+        [ -e "$link" ] || { rm -f "$link" && mark_changed; }
     done
 
     # Series: remove any symlinks pointing to directories (old approach) and broken ones,
     # then remove empty dirs. File symlinks (new approach) are left intact.
     find "$SERIES_DIR" -type l | while IFS= read -r link; do
         if ! [ -e "$link" ] || [ -d "$link" ]; then
-            rm -f "$link"
+            rm -f "$link" && mark_changed
         fi
     done
     find "$SERIES_DIR" -mindepth 1 -depth -type d -empty -delete 2>/dev/null
@@ -170,19 +195,16 @@ sync_symlinks() {
         kind="$(classify_item "$item" "$search")"
 
         if [ "$kind" = "movie" ]; then
-            local link="$MOVIES_DIR/$name"
-            [ -L "$link" ] || ln -s "$item" "$link"
+            link_video "$item" "$MOVIES_DIR/$name"
 
         elif [ "$kind" = "unknown" ] && [ -d "$item" ]; then
             # Movie collection folder (e.g. "Mad Max Collection (1979-2015)/"):
             # the folder name has no clear year/series pattern but contains movie files.
-            find "$item" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" -o -iname "*.m4v" -o -iname "*.ts" \) 2>/dev/null \
-            | while IFS= read -r video; do
+            find_videos "$item" 1 | while IFS= read -r video; do
                 local vname
                 vname="$(basename "$video")"
                 if echo "$vname" | grep -qE "$MOVIE_YEAR_PATTERN"; then
-                    local link="$MOVIES_DIR/$vname"
-                    [ -L "$link" ] || ln -s "$video" "$link"
+                    link_video "$video" "$MOVIES_DIR/$vname"
                 fi
             done
 
@@ -196,8 +218,7 @@ sync_symlinks() {
                 item_season="$(extract_season_number "$name")"
                 if [ -n "$item_season" ]; then
                     mkdir -p "$show_dir/Season $item_season"
-                    local link="$show_dir/Season $item_season/$name"
-                    [ -L "$link" ] || ln -s "$item" "$link"
+                    link_video "$item" "$show_dir/Season $item_season/$name"
                 fi
             else
                 # Directory: either a season pack (S01 in name) or a show folder
@@ -210,8 +231,39 @@ sync_symlinks() {
     say "Symlink sync complete."
 }
 
+# Ask Jellyfin for a full library scan, but only when sync_symlinks actually
+# touched the library. A scan is expensive over the WebDAV mount, and running
+# one every cycle regardless of changes kept Jellyfin busy for nothing.
+scan_jellyfin_if_needed() {
+    if [ "$JELLYFIN_ENABLE_SCAN" != true ]; then
+        say "Jellyfin scan is disabled. Skipping..."
+        return
+    fi
+    if ! changes_pending; then
+        say "Library unchanged. Skipping Jellyfin scan."
+        return
+    fi
+    if [ -z "$JELLYFIN_TOKEN" ]; then
+        say "Jellyfin scan is enabled but no JELLYFIN_TOKEN provided. Skipping Jellyfin scan."
+        return
+    fi
+
+    say "Library changed. Triggering Jellyfin library scan..."
+    if wget -q -O /dev/null \
+        --header "X-Emby-Token: ${JELLYFIN_TOKEN}" \
+        --post-data "" \
+        "${JELLYFIN_URL}/Library/Refresh" 2>&1
+    then
+        clear_changes
+    else
+        # Keep the marker so the next cycle retries the scan.
+        say "Failed to trigger Jellyfin library scan"
+    fi
+}
+
 sleep "${WEBDAV_REFRESH_INITIAL_DELAY}"
 
+clear_changes
 sync_symlinks || say "Symlink sync failed"
 
 say "Starting refresh loop..."
@@ -222,23 +274,7 @@ while wget -q -O /dev/null --post-data="" "http://rclone:5572/vfs/stats" 2>/dev/
         2>&1 || say "Jellyfin WebDAV refresh failed"
     sync_symlinks || say "Symlink sync failed"
 
-    if [ "$JELLYFIN_ENABLE_SCAN" = true ]; then
-        if [ -z "$JELLYFIN_TOKEN" ]; then
-            say "Jellyfin scan is enabled but no JELLYFIN_TOKEN provided. Skipping Jellyfin scan."
-        else
-            say "Waiting ${JELLYFIN_SCAN_DELAY}s before Jellyfin scan..."
-            sleep "${JELLYFIN_SCAN_DELAY}"
-
-            say "Triggering Jellyfin library scan..."
-            wget -q -O /dev/null \
-                --header "X-Emby-Token: ${JELLYFIN_TOKEN}" \
-                --post-data "" \
-                "${JELLYFIN_URL}/Library/Refresh" \
-                2>&1 || say "Failed to trigger Jellyfin library scan"
-        fi
-    else
-        say "Jellyfin scan is disabled. Skipping..."
-    fi
+    scan_jellyfin_if_needed
 
     say "Waiting ${WEBDAV_REFRESH_INTERVAL}s before next Jellyfin WebDAV refresh..."
     sleep "${WEBDAV_REFRESH_INTERVAL}"
