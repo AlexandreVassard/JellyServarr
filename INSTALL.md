@@ -6,112 +6,57 @@ Once the Docker stack is running, configure each service through its web UI in t
 
 ## Table of Contents
 
-1. [RDTClient](#1-rdtclient)
-2. [Radarr](#2-radarr)
-3. [Sonarr](#3-sonarr)
-4. [Prowlarr](#4-prowlarr)
+1. [Jellyfin](#1-jellyfin)
+2. [Jellyseerr](#2-jellyseerr)
 
 ---
 
-## 1. RDTClient
+## 1. Jellyfin
 
-> Complete the initial login and provider setup before configuring the settings below.
+> Complete the initial setup wizard before configuring the libraries below.
 
-### Download Client
+### Libraries
 
-**Settings → Download Client**
+**Dashboard → Libraries → Add Media Library**
 
-| Field | Value |
+| Content type | Folder |
 |---|---|
-| Download client | `Symlink Downloader` |
-| Download path | `/downloads` |
-| Mapped path | `/downloads` |
-| Rclone mount path | `/mnt/webdav` |
+| `Movies` | `/medias/movies` |
+| `Shows` | `/medias/series` |
 
-### Post-Download Behavior
+Both folders are populated with symlinks by the `media-sync` sidecar. Do not point a library
+at `/mnt/webdav` directly — the raw remote has no Jellyfin-compatible naming scheme.
 
-**Settings → qBittorrent / \*darr**
+### API key
 
-| Field | Value |
-|---|---|
-| Post Download Action | `Remove Torrent From Client` |
+The `media-sync` sidecar needs an API key to trigger library scans.
+
+**Dashboard → API Keys → +**
+
+Copy the token into `JELLYFIN_TOKEN` in `.env`, then restart the sidecar:
+
+```shell
+docker compose restart media-sync
+```
 
 ---
 
-## 2. Radarr
+## 2. Jellyseerr
 
 > Complete the initial login setup before configuring the settings below.
 
-### Root Folder
+### Media Server
 
-**Settings → Media Management → Add Root Folder**
-
-```
-/downloads
-```
-
-### Download Client
-
-**Settings → Download Clients → + → qBittorrent**
+At first launch, choose **Jellyfin** as the media server backend.
 
 | Field | Value |
 |---|---|
-| Name | `rdtclient` |
-| Host | `rdtclient` |
-| Port | `6500` |
-| Username | *(your RDTClient username)* |
-| Password | *(your RDTClient password)* |
-| Category | `radarr` |
+| Jellyfin URL | `http://jellyfin:8096` |
+| Email / Username | *(your Jellyfin admin account)* |
+| Password | *(your Jellyfin admin password)* |
 
----
+Then select the **Films** and **Séries** libraries to sync.
 
-## 3. Sonarr
-
-> Complete the initial login setup before configuring the settings below.
-
-### Root Folder
-
-**Settings → Media Management → Add Root Folder**
-
-```
-/downloads
-```
-
-### Download Client
-
-**Settings → Download Clients → + → qBittorrent**
-
-| Field | Value |
-|---|---|
-| Name | `rdtclient` |
-| Host | `rdtclient` |
-| Port | `6500` |
-| Username | *(your RDTClient username)* |
-| Password | *(your RDTClient password)* |
-| Category | `sonarr` |
-
----
-
-## 4. Prowlarr
-
-> Complete the initial login setup and add your indexers.
-
-### Connect Radarr
-
-**Settings → Apps → + → Radarr**
-
-| Field | Value |
-|---|---|
-| Prowlarr Server | `http://prowlarr:9696` |
-| Radarr Server | `http://radarr:7878` |
-| API Key | *(Radarr → Settings → General → API Key)* |
-
-### Connect Sonarr
-
-**Settings → Apps → + → Sonarr**
-
-| Field | Value |
-|---|---|
-| Prowlarr Server | `http://prowlarr:9696` |
-| Sonarr Server | `http://sonarr:8989` |
-| API Key | *(Sonarr → Settings → General → API Key)* |
+> **Note:** with Radarr and Sonarr removed from the stack, Jellyseerr has no download
+> automation to forward requests to. It works as a catalog and a request/wishlist tracker;
+> approved requests must be fulfilled manually.

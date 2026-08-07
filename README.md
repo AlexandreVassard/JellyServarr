@@ -2,20 +2,12 @@
 
 A self-hosted media stack powered by Docker Compose. It mounts a remote WebDAV storage with rclone, keeps it in sync, and automatically triggers Jellyfin library scans when new media arrives — all behind a Traefik reverse proxy with automatic HTTPS.
 
-![dashboard screenshot](docs/images/dashboard.png)
-
 ## Services
 
 | Service | Role | URL |
 |---|---|---|
 | **Jellyfin** | Media server | `jellyfin.yourdomain.tld` |
-| **Radarr** | Movie automation | `radarr.yourdomain.tld` |
-| **Sonarr** | TV show automation | `sonarr.yourdomain.tld` |
-| **Prowlarr** | Indexer manager | `prowlarr.yourdomain.tld` |
 | **Jellyseerr** | Media request platform | `jellyseerr.yourdomain.tld` |
-| **Tautulli** | Activity monitoring | `tautulli.yourdomain.tld` |
-| **RDTClient** | Download client (Real-Debrid / AllDebrid) | `rdtclient.yourdomain.tld` |
-| **Homer** | Dashboard | `homer.yourdomain.tld` |
 | **Traefik** | Reverse proxy + TLS | `:8080` (dashboard) |
 | **rclone** | WebDAV mount | internal |
 | **media-sync** | Sync sidecar | internal |
@@ -51,9 +43,9 @@ At minimum, set these values:
 | Variable | Description | Example |
 |---|---|---|
 | `TRAEFIK_HOST` | Your domain | `yourdomain.tld` |
+| `TLS_CERTIFICATE_MAIL` | Email for Let's Encrypt TLS certificates | `you@example.com` |
 | `PUID` / `PGID` | Your host user/group ID (avoids permission issues) | `1000` / `1000` |
 | `TZ` | Your timezone | `Europe/Paris` |
-| `HOMER_LOCAL_IP` | Your server's local IP address | `192.168.1.10` |
 | `WEBDAV_PATH` | Path inside your WebDAV remote (leave empty for root) | `media/` |
 
 > **To find your PUID/PGID**, run `id` in your terminal.
@@ -164,5 +156,4 @@ Make sure your domain points to your server's public IP and that ports 80/443 ar
 - **FUSE + rshared propagation**: rclone mounts the WebDAV remote inside a container using FUSE. The mount point is bind-mounted with `rshared` propagation so it becomes visible to Jellyfin and other containers — and to the host itself.
 - **Shared bind mount in fstab**: The `install.sh` script adds a `bind,shared` entry in `/etc/fstab`. Without this, the propagation mode resets after reboot, breaking the mount.
 - **Sidecar restart resilience**: If rclone restarts, the `media-sync` sidecar detects the RC API is unreachable and exits with code 1. Docker then restarts it, which re-establishes the dependency chain correctly.
-- **Homer templates**: `config.yml` and `cloud.yml` are generated from `.dist` templates each time Homer starts, substituting `TRAEFIK_HOST` and `HOMER_LOCAL_IP`. Edit the `.dist` files, not the generated ones.
-- **Prowlarr custom indexers**: Definitions in `prowlarr/definitions/` are copied into the container only if they don't already exist, so your edits are preserved across restarts.
+- **Symlink library layout**: `media-sync` classifies each item at the WebDAV root as a movie or a series and builds symlinks under `mnt/medias/movies` and `mnt/medias/series` (with `Season N/` subfolders). Jellyfin's libraries point at those two folders, never at the raw WebDAV mount.

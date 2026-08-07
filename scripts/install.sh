@@ -46,14 +46,17 @@ mkdir -p \
     "${APP_BASE_DIR}/mnt/medias/series" \
     "${APP_BASE_DIR}/data/traefik/letsencrypt" \
     "${APP_BASE_DIR}/data/jellyfin/config" \
-    "${APP_BASE_DIR}/data/prowlarr/config" \
-    "${APP_BASE_DIR}/data/radarr/config" \
-    "${APP_BASE_DIR}/data/sonarr/config" \
     "${APP_BASE_DIR}/data/jellyseerr/config" \
-    "${APP_BASE_DIR}/data/tautulli/config" \
-    "${APP_BASE_DIR}/data/rdtclient/db" \
-    "${APP_BASE_DIR}/data/rdtclient/downloads" \
     "${APP_BASE_DIR}/data/rclone/cache"
+
+say "Setting ownership of data directories..."
+PUID="$(grep -E '^PUID=' "${REPOSITORY_DIR}/.env" 2>/dev/null | cut -d= -f2)"
+PGID="$(grep -E '^PGID=' "${REPOSITORY_DIR}/.env" 2>/dev/null | cut -d= -f2)"
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+chown -R "${PUID}:${PGID}" \
+    "${APP_BASE_DIR}/data/jellyfin" \
+    "${APP_BASE_DIR}/data/jellyseerr"
 
 say "Enabling FUSE allow_other support..."
 grep -q '^user_allow_other' /etc/fuse.conf 2>/dev/null \
@@ -68,6 +71,6 @@ FSTAB_LINE="${APP_BASE_DIR}/mnt/webdav ${APP_BASE_DIR}/mnt/webdav none bind,shar
 grep -qF "$FSTAB_LINE" /etc/fstab || echo "$FSTAB_LINE" >> /etc/fstab
 
 say "Starting Docker Compose stack..."
-docker compose -f "${REPOSITORY_DIR}/compose.yml" up -d
+docker compose -f "${REPOSITORY_DIR}/compose.yml" up -d --remove-orphans
 
 say "Installation complete."

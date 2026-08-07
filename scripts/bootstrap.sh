@@ -52,7 +52,7 @@ $(date '+%Y-%m-%d %H:%M:%S') >>
 $(date '+%Y-%m-%d %H:%M:%S') >> Before starting, configure two files:
 $(date '+%Y-%m-%d %H:%M:%S') >>
 $(date '+%Y-%m-%d %H:%M:%S') >>   1. ${ENV_FILE}
-$(date '+%Y-%m-%d %H:%M:%S') >>      Set TRAEFIK_HOST, PUID/PGID, TZ, HOMER_LOCAL_IP, WEBDAV_PATH
+$(date '+%Y-%m-%d %H:%M:%S') >>      Set TRAEFIK_HOST, TLS_CERTIFICATE_MAIL, PUID/PGID, TZ, WEBDAV_PATH
 $(date '+%Y-%m-%d %H:%M:%S') >>
 $(date '+%Y-%m-%d %H:%M:%S') >>   2. ${RCLONE_CONF_FILE}
 $(date '+%Y-%m-%d %H:%M:%S') >>      Set your WebDAV URL, user, and obscured password.
