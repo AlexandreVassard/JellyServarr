@@ -32,7 +32,7 @@ is_video_file() {
 #   (1964 something)    - year in parens followed by extra info
 #   .1964.              - year between dots (scene naming)
 #   " 1964 " / " 1964."- year surrounded by spaces or space+dot
-MOVIE_YEAR_PATTERN='\([12][0-9]{3}\)|\([12][0-9]{3}[^0-9]|\.[12][0-9]{3}\.| [12][0-9]{3} | [12][0-9]{3}\.'
+MOVIE_YEAR_PATTERN='\([12][0-9]{3}\)|\([12][0-9]{3}[^0-9-]|\.[12][0-9]{3}\.| [12][0-9]{3} | [12][0-9]{3}\.'
 
 classify_item() {
     local item="$1" search="$2"
